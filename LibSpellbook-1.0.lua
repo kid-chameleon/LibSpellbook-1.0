@@ -100,7 +100,6 @@ if oldminor < 1 then
 		for id, spellGen in pairs(lib.spells.lastSeen) do
 			if spellGen ~= gen then
 				changed = true
-				print("LibSpellbook: lost", id, byId[id])
 				byName[byId[id]] = nil
 				byId[id] = nil
 				book[id] = nil
