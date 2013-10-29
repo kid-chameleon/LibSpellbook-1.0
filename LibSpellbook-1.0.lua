@@ -31,9 +31,9 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 1
+local MAJOR, MINOR = "LibSpellbook-1.0", 2
 --@debug@
-MINOR = 999999999
+MINOR = math.huge
 --@end-debug@
 assert(LibStub, MAJOR.." requires LibStub")
 local lib, oldminor = LibStub:NewLibrary(MAJOR, MINOR)
@@ -58,60 +58,7 @@ if oldminor < 1 then
 	lib.callbacks = LibStub('CallbackHandler-1.0'):New(lib)
 
 	-- Upvalues
-	local byName, byId, book, lastSeen = lib.spells.byName, lib.spells.byId, lib.spells.book, lib.spells.lastSeen
-
-	-- Scan one spellbook
-	function lib:ScanSpellbook(bookType, numSpells, gen)
-		local changed = false
-
-		for index = 1, numSpells do
-			local spellType = GetSpellBookItemInfo(index, bookType)
-			if spellType  == "SPELL" then
-				local link = GetSpellLink(index, bookType)
-				local id, name = strmatch(link, "spell:(%d+)|h%[(.+)%]")
-				id = tonumber(id)
-				if not lastSeen[id] then
-					changed = true
-				end
-				byName[name] = id
-				byId[id] = name
-				book[id] = bookType
-				lastSeen[id] = gen
-			elseif not spellType then
-				break
-			end
-		end
-
-		return changed
-	end
-
-	function lib:ScanSpellbooks()
-		local gen = lib.generation + 1
-		lib.generation = gen
-
-		-- Scan for existing and new spells
-		local changed = lib:ScanSpellbook(BOOKTYPE_SPELL, MAX_SPELLS, gen)
-		local numPetSpells = HasPetSpells()
-		if numPetSpells then
-			changed = lib:ScanSpellbook(BOOKTYPE_PET, numPetSpells, gen) or changed
-		end
-
-		-- Remove old spells
-		for id, spellGen in pairs(lib.spells.lastSeen) do
-			if spellGen ~= gen then
-				changed = true
-				byName[byId[id]] = nil
-				byId[id] = nil
-				book[id] = nil
-				lastSeen[id] = nil
-			end
-		end
-
-		-- Fire an event if anything was added or removed
-		if changed then
-			lib.callbacks:Fire("LibSpellbook_Spells_Changed")
-		end
-	end
+	local byName, byId, book = lib.spells.byName, lib.spells.byId, lib.spells.book
 
 	-- Resolve a spell name, link or identifier into a spell identifier, or nil.
 	function lib:Resolve(spell)
@@ -163,6 +110,73 @@ if oldminor < 1 then
 				return k, v
 			end, byId
 		end
+	end
+
+end
+
+if oldminor < 2 then
+	-- Upvalues
+	local byName, byId, book, lastSeen = lib.spells.byName, lib.spells.byId, lib.spells.book, lib.spells.lastSeen
+
+	-- Scan one spellbook
+	function lib:ScanSpellbook(bookType, numSpells, gen)
+		local changed = false
+
+		for index = 1, numSpells do
+			local spellType = GetSpellBookItemInfo(index, bookType)
+			if spellType  == "SPELL" then
+				local link = GetSpellLink(index, bookType)
+				local id, name = strmatch(link, "spell:(%d+)|h%[(.+)%]")
+				id = tonumber(id)
+				local isNew = not lastSeen[id]
+				byName[name] = id
+				byId[id] = name
+				book[id] = bookType
+				lastSeen[id] = gen
+				if isNew then
+					changed = true
+					lib.callbacks:Fire("LibSpellbook_Spell_Added", id, bookType, name)
+				end
+			elseif not spellType then
+				break
+			end
+		end
+
+		return changed
+	end
+
+	function lib:ScanSpellbooks()
+		local gen = lib.generation + 1
+		lib.generation = gen
+
+		-- Scan for existing and new spells
+		local changed = lib:ScanSpellbook(BOOKTYPE_SPELL, MAX_SPELLS, gen)
+		local numPetSpells = HasPetSpells()
+		if numPetSpells then
+			changed = lib:ScanSpellbook(BOOKTYPE_PET, numPetSpells, gen) or changed
+		end
+
+		-- Remove old spells
+		for id, spellGen in pairs(lib.spells.lastSeen) do
+			if spellGen ~= gen then
+				changed = true
+				local name = byId[id]
+				lib.callbacks:Fire("LibSpellbook_Spell_Removed", id, book[id], name)
+				byName[name] = nil
+				byId[id] = nil
+				book[id] = nil
+				lastSeen[id] = nil
+			end
+		end
+
+		-- Fire an event if anything was added or removed
+		if changed then
+			lib.callbacks:Fire("LibSpellbook_Spells_Changed")
+		end
+	end
+
+	function lib:HasSpells()
+		return next(byId) and lib.generation > 0
 	end
 
 end
