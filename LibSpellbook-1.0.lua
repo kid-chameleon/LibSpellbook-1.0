@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 3
+local MAJOR, MINOR = "LibSpellbook-1.0", 4
 --@debug@
 MINOR = math.huge
 --@end-debug@
@@ -120,20 +120,17 @@ if oldminor < 1 then
 
 end
 
-if oldminor < 2 then
-	-- Upvalues
-	local byName, byId, book, lastSeen = lib.spells.byName, lib.spells.byId, lib.spells.book, lib.spells.lastSeen
+if oldminor < 4 then
 
 	-- Scan one spellbook
-	function lib:ScanSpellbook(bookType, numSpells, gen)
+	function lib:ScanSpellbook(bookType, numSpells, gen, offset)
 		local changed = false
+		offset = offset or 0
 
-		for index = 1, numSpells do
-			local spellType = GetSpellBookItemInfo(index, bookType)
-			if spellType  == "SPELL" then
-				local link = GetSpellLink(index, bookType)
-				local id, name = strmatch(link, "spell:(%d+)|h%[(.+)%]")
-				id = tonumber(id)
+		for index = offset + 1, offset + numSpells do
+			local spellType, id = GetSpellBookItemInfo(index, bookType)
+			if spellType == "SPELL" then
+				local name = GetSpellBookItemName(index, bookType)
 				local isNew = not lastSeen[id]
 				byName[name] = id
 				byId[id] = name
@@ -156,7 +153,12 @@ if oldminor < 2 then
 		lib.generation = gen
 
 		-- Scan for existing and new spells
-		local changed = lib:ScanSpellbook(BOOKTYPE_SPELL, MAX_SPELLS, gen)
+		local changed = false
+		for tab = 1, 2 do
+			local name, _, offset, numSlots = GetSpellTabInfo(tab)
+			changed = lib:ScanSpellbook(BOOKTYPE_SPELL, numSlots, gen, offset) or changed
+		end
+
 		local numPetSpells = HasPetSpells()
 		if numPetSpells then
 			changed = lib:ScanSpellbook(BOOKTYPE_PET, numPetSpells, gen) or changed
