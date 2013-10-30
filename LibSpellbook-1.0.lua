@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 2
+local MAJOR, MINOR = "LibSpellbook-1.0", 3
 --@debug@
 MINOR = math.huge
 --@end-debug@
@@ -41,24 +41,26 @@ if not lib then return end
 oldminor = oldminor or 0
 
 if oldminor < 1 then
-
-	lib.frame = CreateFrame("Frame")
-	lib.frame:SetScript('OnEvent', function() return lib:ScanSpellbooks() end)
-	lib.frame:RegisterEvent('SPELLS_CHANGED')
-	lib.frame:RegisterEvent('PLAYER_ENTERING_WORLD')
-
 	lib.spells = {
 		byName     = {},
 		byId       = {},
 		lastSeen   = {},
 		book       = {},
 	}
+end
+
+-- Upvalues
+local byName, byId, book, lastSeen = lib.spells.byName, lib.spells.byId, lib.spells.book, lib.spells.lastSeen
+
+if oldminor < 1 then
+	lib.frame = CreateFrame("Frame")
+	lib.frame:SetScript('OnEvent', function() return lib:ScanSpellbooks() end)
+	lib.frame:RegisterEvent('SPELLS_CHANGED')
+	lib.frame:RegisterEvent('PLAYER_ENTERING_WORLD')
+
 	lib.generation = 0
 
 	lib.callbacks = LibStub('CallbackHandler-1.0'):New(lib)
-
-	-- Upvalues
-	local byName, byId, book = lib.spells.byName, lib.spells.byId, lib.spells.book
 
 	-- Resolve a spell name, link or identifier into a spell identifier, or nil.
 	function lib:Resolve(spell)
@@ -68,7 +70,9 @@ if oldminor < 1 then
 			return byName[spell] or tonumber(strmatch(spell, "spell:(%d+)") or "")
 		end
 	end
+end
 
+if oldminor < 3 then
 	--- Return whether the player or her pet knowns a spell.
 	-- @name LibSpellbook:IsKnown
 	-- @param spell (string|number) The spell name, link or identifier.
@@ -77,11 +81,13 @@ if oldminor < 1 then
 	function lib:IsKnown(spell, bookType)
 		local id = lib:Resolve(spell)
 		if id and byId[id] then
-			return bookType == nil or bookType == bookd[id]
+			return bookType == nil or bookType == book[id]
 		end
 		return false
 	end
+end
 
+if oldminor < 1 then
 	--- Return the spellbook.
 	-- @name LibSpellbook:GetBookType
 	-- @param spell (string|number) The spell name, link or identifier.
