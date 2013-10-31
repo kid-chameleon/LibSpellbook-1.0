@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 6
+local MAJOR, MINOR = "LibSpellbook-1.0", 7
 --@debug@
 MINOR = math.huge
 --@end-debug@
@@ -134,9 +134,9 @@ if oldminor < 5 then
 
 end
 
-if oldminor < 6 then
+if oldminor < 7 then
 
-	function lib:FoundSpell(id, name)
+	function lib:FoundSpell(id, name, bookType)
 		local isNew = not lastSeen[id]
 		byName[name] = id
 		byId[id] = name
@@ -148,6 +148,25 @@ if oldminor < 6 then
 		end
 	end
 
+	-- Scan the spells of a flyout
+	function lib:ScanFlyout(flyoutId, bookType)
+		local _, _, numSlots, isKnown = GetFlyoutInfo(flyoutId)
+		if not isKnown or numSlots < 1 then
+			return
+		end
+		local changed = false
+		for i = 1, numSlots do
+			local id1, id2, isKnown, spellName = GetFlyoutSlotInfo(flyoutId, i)
+			if isKnown then
+				changed = self:FoundSpell(id1, spellName, bookType) or changed
+				if id2 ~= id1 then
+					changed = self:FoundSpell(id2, spellName, bookType) or changed
+				end
+			end
+		end
+		return changed
+	end
+
 	-- Scan one spellbook
 	function lib:ScanSpellbook(bookType, numSpells, gen, offset)
 		local changed = false
@@ -155,13 +174,15 @@ if oldminor < 6 then
 
 		for index = offset + 1, offset + numSpells do
 			local spellType, id1 = GetSpellBookItemInfo(index, bookType)
-			if spellType  == "SPELL" then
+			if spellType == "SPELL" then
 				local link = GetSpellLink(index, bookType)
 				local id2, name = strmatch(link, "spell:(%d+)|h%[(.+)%]")
-				changed = lib:FoundSpell(tonumber(id2), name) or changed
+				changed = lib:FoundSpell(tonumber(id2), name, bookType) or changed
 				if id1 ~= id2 then
-					changed = lib:FoundSpell(tonumber(id1), GetSpellBookItemName(index, bookType)) or changed
+					changed = lib:FoundSpell(id1, GetSpellBookItemName(index, bookType), bookType) or changed
 				end
+			elseif spellType == "FLYOUT" then
+				changed = lib:ScanFlyout(id1, bookType) or changed
 			elseif not spellType then
 				break
 			end
@@ -170,9 +191,19 @@ if oldminor < 6 then
 		return changed
 	end
 
-end
+	-- Scan one companion list
+	function lib:ScanCompanions(companionType, gen)
+		local changed = false
 
-if oldminor < 4 then
+		for index = 1, GetNumCompanions(companionType) do
+			local _, name, id = GetCompanionInfo(companionType, index)
+			if name then
+				changed = self:FoundSpell(id, name, companionType) or changed
+			end
+		end
+
+		return changed
+	end
 
 	function lib:ScanSpellbooks()
 		local gen = lib.generation + 1
@@ -184,6 +215,10 @@ if oldminor < 4 then
 			local name, _, offset, numSlots = GetSpellTabInfo(tab)
 			changed = lib:ScanSpellbook(BOOKTYPE_SPELL, numSlots, gen, offset) or changed
 		end
+
+		-- Scan mounts and critters
+		changed = lib:ScanCompanions("MOUNT", gen) or changed
+		changed = lib:ScanCompanions("CRITTER", gen) or changed
 
 		-- Scan pet spells
 		local numPetSpells = HasPetSpells()
@@ -209,6 +244,10 @@ if oldminor < 4 then
 			lib.callbacks:Fire("LibSpellbook_Spells_Changed")
 		end
 	end
+
+end
+
+if oldminor < 4 then
 
 	function lib:HasSpells()
 		return next(byId) and lib.generation > 0
