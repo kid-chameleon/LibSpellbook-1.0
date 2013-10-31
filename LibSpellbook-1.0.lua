@@ -38,21 +38,26 @@ MINOR = math.huge
 assert(LibStub, MAJOR.." requires LibStub")
 local lib, oldminor = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
+
+-- oldminor is used to upgrade only what's needed
 oldminor = oldminor or 0
 
 if oldminor < 1 then
+
 	lib.spells = {
 		byName     = {},
 		byId       = {},
 		lastSeen   = {},
 		book       = {},
 	}
+
 end
 
 -- Upvalues
 local byName, byId, book, lastSeen = lib.spells.byName, lib.spells.byId, lib.spells.book, lib.spells.lastSeen
 
 if oldminor < 1 then
+
 	lib.frame = CreateFrame("Frame")
 	lib.frame:SetScript('OnEvent', function() return lib:ScanSpellbooks() end)
 	lib.frame:RegisterEvent('SPELLS_CHANGED')
@@ -70,9 +75,11 @@ if oldminor < 1 then
 			return byName[spell] or tonumber(strmatch(spell, "spell:(%d+)") or "")
 		end
 	end
+
 end
 
 if oldminor < 3 then
+
 	--- Return whether the player or her pet knowns a spell.
 	-- @name LibSpellbook:IsKnown
 	-- @param spell (string|number) The spell name, link or identifier.
@@ -85,9 +92,11 @@ if oldminor < 3 then
 		end
 		return false
 	end
+
 end
 
 if oldminor < 1 then
+
 	--- Return the spellbook.
 	-- @name LibSpellbook:GetBookType
 	-- @param spell (string|number) The spell name, link or identifier.
@@ -101,7 +110,7 @@ end
 
 if oldminor < 5 then
 
-	--- .
+	--- Iterate through all spells.
 	-- @name LibSpellbook:IterateSpells
 	-- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, or nil for both.
 	-- @return An iterator and a table, suitable to use in "in" part of a "for ... in" loop.
@@ -157,13 +166,14 @@ if oldminor < 4 then
 		local gen = lib.generation + 1
 		lib.generation = gen
 
-		-- Scan for existing and new spells
+		-- Scan spell tabs
 		local changed = false
 		for tab = 1, 2 do
 			local name, _, offset, numSlots = GetSpellTabInfo(tab)
 			changed = lib:ScanSpellbook(BOOKTYPE_SPELL, numSlots, gen, offset) or changed
 		end
 
+		-- Scan pet spells
 		local numPetSpells = HasPetSpells()
 		if numPetSpells then
 			changed = lib:ScanSpellbook(BOOKTYPE_PET, numPetSpells, gen) or changed
