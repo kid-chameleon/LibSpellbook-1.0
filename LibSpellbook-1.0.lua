@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 5
+local MAJOR, MINOR = "LibSpellbook-1.0", 6
 --@debug@
 MINOR = math.huge
 --@end-debug@
@@ -134,7 +134,19 @@ if oldminor < 5 then
 
 end
 
-if oldminor < 4 then
+if oldminor < 6 then
+
+	function lib:FoundSpell(id, name)
+		local isNew = not lastSeen[id]
+		byName[name] = id
+		byId[id] = name
+		book[id] = bookType
+		lastSeen[id] = gen
+		if isNew then
+			lib.callbacks:Fire("LibSpellbook_Spell_Added", id, bookType, name)
+			return true
+		end
+	end
 
 	-- Scan one spellbook
 	function lib:ScanSpellbook(bookType, numSpells, gen, offset)
@@ -142,17 +154,13 @@ if oldminor < 4 then
 		offset = offset or 0
 
 		for index = offset + 1, offset + numSpells do
-			local spellType, id = GetSpellBookItemInfo(index, bookType)
-			if spellType == "SPELL" then
-				local name = GetSpellBookItemName(index, bookType)
-				local isNew = not lastSeen[id]
-				byName[name] = id
-				byId[id] = name
-				book[id] = bookType
-				lastSeen[id] = gen
-				if isNew then
-					changed = true
-					lib.callbacks:Fire("LibSpellbook_Spell_Added", id, bookType, name)
+			local spellType, id1 = GetSpellBookItemInfo(index, bookType)
+			if spellType  == "SPELL" then
+				local link = GetSpellLink(index, bookType)
+				local id2, name = strmatch(link, "spell:(%d+)|h%[(.+)%]")
+				changed = lib:FoundSpell(tonumber(id2), name) or changed
+				if id1 ~= id2 then
+					changed = lib:FoundSpell(tonumber(id1), GetSpellBookItemName(index, bookType)) or changed
 				end
 			elseif not spellType then
 				break
@@ -161,6 +169,10 @@ if oldminor < 4 then
 
 		return changed
 	end
+
+end
+
+if oldminor < 4 then
 
 	function lib:ScanSpellbooks()
 		local gen = lib.generation + 1
