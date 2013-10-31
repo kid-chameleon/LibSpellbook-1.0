@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 4
+local MAJOR, MINOR = "LibSpellbook-1.0", 5
 --@debug@
 MINOR = math.huge
 --@end-debug@
@@ -97,6 +97,10 @@ if oldminor < 1 then
 		return id and book[id]
 	end
 
+end
+
+if oldminor < 5 then
+
 	--- .
 	-- @name LibSpellbook:IterateSpells
 	-- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, or nil for both.
@@ -110,6 +114,7 @@ if oldminor < 1 then
 			return pairs(byId)
 		else
 			return function(t, k)
+				local v
 				repeat
 					k, v = next(t, k)
 				until not k or v == bookType
