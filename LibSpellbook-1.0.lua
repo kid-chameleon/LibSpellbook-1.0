@@ -127,7 +127,7 @@ function lib:FoundSpell(id, name, bookType)
 	byName[name] = id
 	byId[id] = name
 	book[id] = bookType
-	lastSeen[id] = gen
+	lastSeen[id] = lib.generation
 	if isNew then
 		lib.callbacks:Fire("LibSpellbook_Spell_Added", id, bookType, name)
 		return true
@@ -154,7 +154,7 @@ function lib:ScanFlyout(flyoutId, bookType)
 end
 
 -- Scan one spellbook
-function lib:ScanSpellbook(bookType, numSpells, gen, offset)
+function lib:ScanSpellbook(bookType, numSpells, offset)
 	local changed = false
 	offset = offset or 0
 
@@ -178,7 +178,7 @@ function lib:ScanSpellbook(bookType, numSpells, gen, offset)
 end
 
 -- Scan one companion list
-function lib:ScanCompanions(companionType, gen)
+function lib:ScanCompanions(companionType)
 	local changed = false
 
 	for index = 1, GetNumCompanions(companionType) do
@@ -192,29 +192,29 @@ function lib:ScanCompanions(companionType, gen)
 end
 
 function lib:ScanSpellbooks()
-	local gen = lib.generation + 1
-	lib.generation = gen
+	lib.generation = lib.generation + 1
 
 	-- Scan spell tabs
 	local changed = false
 	for tab = 1, 2 do
 		local name, _, offset, numSlots = GetSpellTabInfo(tab)
-		changed = lib:ScanSpellbook(BOOKTYPE_SPELL, numSlots, gen, offset) or changed
+		changed = lib:ScanSpellbook(BOOKTYPE_SPELL, numSlots, offset) or changed
 	end
 
 	-- Scan mounts and critters
-	changed = lib:ScanCompanions("MOUNT", gen) or changed
-	changed = lib:ScanCompanions("CRITTER", gen) or changed
+	changed = lib:ScanCompanions("MOUNT") or changed
+	changed = lib:ScanCompanions("CRITTER") or changed
 
 	-- Scan pet spells
 	local numPetSpells = HasPetSpells()
 	if numPetSpells then
-		changed = lib:ScanSpellbook(BOOKTYPE_PET, numPetSpells, gen) or changed
+		changed = lib:ScanSpellbook(BOOKTYPE_PET, numPetSpells) or changed
 	end
 
 	-- Remove old spells
-	for id, spellGen in pairs(lib.spells.lastSeen) do
-		if spellGen ~= gen then
+	local current = lib.generation
+	for id, gen in pairs(lib.spells.lastSeen) do
+		if gen ~= current then
 			changed = true
 			local name = byId[id]
 			lib.callbacks:Fire("LibSpellbook_Spell_Removed", id, book[id], name)
