@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 7
+local MAJOR, MINOR = "LibSpellbook-1.0", 8
 --@debug@
 MINOR = math.huge
 --@end-debug@
@@ -67,10 +67,23 @@ function lib:Resolve(spell)
 	if type(spell) == "number" then
 		return spell
 	elseif type(spell) == "string" then
-		return byName[spell] or tonumber(strmatch(spell, "spell:(%d+)") or "")
+		local ids = byName[spell]
+		if ids then
+			return next(ids)
+		else
+			return tonumber(strmatch(spell, "spell:(%d+)") or "")
+		end
 	end
 end
 
+--- Return all ids associated to a spell name
+-- @name LibSpellbook:GetAllIds
+-- @param spell (string|number) The spell name, link or identifier.
+-- @return ids A table with spell ids as keys.
+function lib:GetAllIds(spell)
+	id = lib:Resolve(spell)
+	local name = id and byId[id]
+	return name and byName[name]
 end
 
 --- Return whether the player or her pet knowns a spell.
@@ -124,7 +137,11 @@ end
 
 function lib:FoundSpell(id, name, bookType)
 	local isNew = not lastSeen[id]
-	byName[name] = id
+	if byName[name] then
+		byName[name][id] = true
+	else
+		byName[name] = { [id] = true }
+	end
 	byId[id] = name
 	book[id] = bookType
 	lastSeen[id] = lib.generation
@@ -218,7 +235,10 @@ function lib:ScanSpellbooks()
 			changed = true
 			local name = byId[id]
 			lib.callbacks:Fire("LibSpellbook_Spell_Removed", id, book[id], name)
-			byName[name] = nil
+			byName[name][id] = nil
+			if not next(byName[name]) then
+				byName[name] = nil
+			end
 			byId[id] = nil
 			book[id] = nil
 			lastSeen[id] = nil
