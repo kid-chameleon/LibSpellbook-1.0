@@ -36,221 +36,196 @@ local MAJOR, MINOR = "LibSpellbook-1.0", 7
 MINOR = math.huge
 --@end-debug@
 assert(LibStub, MAJOR.." requires LibStub")
-local lib, oldminor = LibStub:NewLibrary(MAJOR, MINOR)
+local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
--- oldminor is used to upgrade only what's needed
-oldminor = oldminor or 0
-
-if oldminor < 1 then
-
+if not lib.spells then
 	lib.spells = {
 		byName     = {},
 		byId       = {},
 		lastSeen   = {},
 		book       = {},
 	}
-
 end
 
--- Upvalues
-local byName, byId, book, lastSeen = lib.spells.byName, lib.spells.byId, lib.spells.book, lib.spells.lastSeen
-
-if oldminor < 1 then
-
+if not lib.frame then
 	lib.frame = CreateFrame("Frame")
 	lib.frame:SetScript('OnEvent', function() return lib:ScanSpellbooks() end)
 	lib.frame:RegisterEvent('SPELLS_CHANGED')
 	lib.frame:RegisterEvent('PLAYER_ENTERING_WORLD')
+end
 
-	lib.generation = 0
+lib.generation = lib.generation or 0
 
-	lib.callbacks = LibStub('CallbackHandler-1.0'):New(lib)
+lib.callbacks = lib.callbacks or LibStub('CallbackHandler-1.0'):New(lib)
 
-	-- Resolve a spell name, link or identifier into a spell identifier, or nil.
-	function lib:Resolve(spell)
-		if type(spell) == "number" then
-			return spell
-		elseif type(spell) == "string" then
-			return byName[spell] or tonumber(strmatch(spell, "spell:(%d+)") or "")
-		end
+-- Upvalues
+local byName, byId, book, lastSeen = lib.spells.byName, lib.spells.byId, lib.spells.book, lib.spells.lastSeen
+
+-- Resolve a spell name, link or identifier into a spell identifier, or nil.
+function lib:Resolve(spell)
+	if type(spell) == "number" then
+		return spell
+	elseif type(spell) == "string" then
+		return byName[spell] or tonumber(strmatch(spell, "spell:(%d+)") or "")
 	end
+end
 
 end
 
-if oldminor < 3 then
-
-	--- Return whether the player or her pet knowns a spell.
-	-- @name LibSpellbook:IsKnown
-	-- @param spell (string|number) The spell name, link or identifier.
-	-- @param bookType (string) The spellbook to look into, either BOOKTYPE_SPELL, BOOKTYPE_PET, or nil (=any).
-	-- @return True if the spell exists in the given spellbook (o
-	function lib:IsKnown(spell, bookType)
-		local id = lib:Resolve(spell)
-		if id and byId[id] then
-			return bookType == nil or bookType == book[id]
-		end
-		return false
+--- Return whether the player or her pet knowns a spell.
+-- @name LibSpellbook:IsKnown
+-- @param spell (string|number) The spell name, link or identifier.
+-- @param bookType (string) The spellbook to look into, either BOOKTYPE_SPELL, BOOKTYPE_PET, or nil (=any).
+-- @return True if the spell exists in the given spellbook (o
+function lib:IsKnown(spell, bookType)
+	local id = lib:Resolve(spell)
+	if id and byId[id] then
+		return bookType == nil or bookType == book[id]
 	end
-
+	return false
 end
 
-if oldminor < 1 then
-
-	--- Return the spellbook.
-	-- @name LibSpellbook:GetBookType
-	-- @param spell (string|number) The spell name, link or identifier.
-	-- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet") or nil if the spell if unknown.
-	function lib:GetBookType(spell)
-		local id = lib:Resolve(spell)
-		return id and book[id]
-	end
-
+--- Return the spellbook.
+-- @name LibSpellbook:GetBookType
+-- @param spell (string|number) The spell name, link or identifier.
+-- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet") or nil if the spell if unknown.
+function lib:GetBookType(spell)
+	local id = lib:Resolve(spell)
+	return id and book[id]
 end
 
-if oldminor < 5 then
-
-	--- Iterate through all spells.
-	-- @name LibSpellbook:IterateSpells
-	-- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, or nil for both.
-	-- @return An iterator and a table, suitable to use in "in" part of a "for ... in" loop.
-	-- @usage
-	--   for id, name in LibSpellbook:IterateSpells(BOOKTYPE_SPELL) do
-	--     -- Do something
-	--   end
-	function lib:IterateSpells(bookType)
-		if not bookType then
-			return pairs(byId)
-		else
-			return function(t, k)
-				local v
-				repeat
-					k, v = next(t, k)
-				until not k or v == bookType
-				return k, v
-			end, byId
-		end
+--- Iterate through all spells.
+-- @name LibSpellbook:IterateSpells
+-- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, or nil for both.
+-- @return An iterator and a table, suitable to use in "in" part of a "for ... in" loop.
+-- @usage
+--   for id, name in LibSpellbook:IterateSpells(BOOKTYPE_SPELL) do
+--     -- Do something
+--   end
+function lib:IterateSpells(bookType)
+	if not bookType then
+		return pairs(byId)
+	else
+		return function(t, k)
+			local v
+			repeat
+				k, v = next(t, k)
+			until not k or v == bookType
+			return k, v
+		end, byId
 	end
-
 end
 
-if oldminor < 7 then
-
-	function lib:FoundSpell(id, name, bookType)
-		local isNew = not lastSeen[id]
-		byName[name] = id
-		byId[id] = name
-		book[id] = bookType
-		lastSeen[id] = gen
-		if isNew then
-			lib.callbacks:Fire("LibSpellbook_Spell_Added", id, bookType, name)
-			return true
-		end
+function lib:FoundSpell(id, name, bookType)
+	local isNew = not lastSeen[id]
+	byName[name] = id
+	byId[id] = name
+	book[id] = bookType
+	lastSeen[id] = gen
+	if isNew then
+		lib.callbacks:Fire("LibSpellbook_Spell_Added", id, bookType, name)
+		return true
 	end
+end
 
-	-- Scan the spells of a flyout
-	function lib:ScanFlyout(flyoutId, bookType)
-		local _, _, numSlots, isKnown = GetFlyoutInfo(flyoutId)
-		if not isKnown or numSlots < 1 then
-			return
-		end
-		local changed = false
-		for i = 1, numSlots do
-			local id1, id2, isKnown, spellName = GetFlyoutSlotInfo(flyoutId, i)
-			if isKnown then
-				changed = self:FoundSpell(id1, spellName, bookType) or changed
-				if id2 ~= id1 then
-					changed = self:FoundSpell(id2, spellName, bookType) or changed
-				end
+-- Scan the spells of a flyout
+function lib:ScanFlyout(flyoutId, bookType)
+	local _, _, numSlots, isKnown = GetFlyoutInfo(flyoutId)
+	if not isKnown or numSlots < 1 then
+		return
+	end
+	local changed = false
+	for i = 1, numSlots do
+		local id1, id2, isKnown, spellName = GetFlyoutSlotInfo(flyoutId, i)
+		if isKnown then
+			changed = self:FoundSpell(id1, spellName, bookType) or changed
+			if id2 ~= id1 then
+				changed = self:FoundSpell(id2, spellName, bookType) or changed
 			end
 		end
-		return changed
 	end
-
-	-- Scan one spellbook
-	function lib:ScanSpellbook(bookType, numSpells, gen, offset)
-		local changed = false
-		offset = offset or 0
-
-		for index = offset + 1, offset + numSpells do
-			local spellType, id1 = GetSpellBookItemInfo(index, bookType)
-			if spellType == "SPELL" then
-				local link = GetSpellLink(index, bookType)
-				local id2, name = strmatch(link, "spell:(%d+)|h%[(.+)%]")
-				changed = lib:FoundSpell(tonumber(id2), name, bookType) or changed
-				if id1 ~= id2 then
-					changed = lib:FoundSpell(id1, GetSpellBookItemName(index, bookType), bookType) or changed
-				end
-			elseif spellType == "FLYOUT" then
-				changed = lib:ScanFlyout(id1, bookType) or changed
-			elseif not spellType then
-				break
-			end
-		end
-
-		return changed
-	end
-
-	-- Scan one companion list
-	function lib:ScanCompanions(companionType, gen)
-		local changed = false
-
-		for index = 1, GetNumCompanions(companionType) do
-			local _, name, id = GetCompanionInfo(companionType, index)
-			if name then
-				changed = self:FoundSpell(id, name, companionType) or changed
-			end
-		end
-
-		return changed
-	end
-
-	function lib:ScanSpellbooks()
-		local gen = lib.generation + 1
-		lib.generation = gen
-
-		-- Scan spell tabs
-		local changed = false
-		for tab = 1, 2 do
-			local name, _, offset, numSlots = GetSpellTabInfo(tab)
-			changed = lib:ScanSpellbook(BOOKTYPE_SPELL, numSlots, gen, offset) or changed
-		end
-
-		-- Scan mounts and critters
-		changed = lib:ScanCompanions("MOUNT", gen) or changed
-		changed = lib:ScanCompanions("CRITTER", gen) or changed
-
-		-- Scan pet spells
-		local numPetSpells = HasPetSpells()
-		if numPetSpells then
-			changed = lib:ScanSpellbook(BOOKTYPE_PET, numPetSpells, gen) or changed
-		end
-
-		-- Remove old spells
-		for id, spellGen in pairs(lib.spells.lastSeen) do
-			if spellGen ~= gen then
-				changed = true
-				local name = byId[id]
-				lib.callbacks:Fire("LibSpellbook_Spell_Removed", id, book[id], name)
-				byName[name] = nil
-				byId[id] = nil
-				book[id] = nil
-				lastSeen[id] = nil
-			end
-		end
-
-		-- Fire an event if anything was added or removed
-		if changed then
-			lib.callbacks:Fire("LibSpellbook_Spells_Changed")
-		end
-	end
-
+	return changed
 end
 
-if oldminor < 4 then
+-- Scan one spellbook
+function lib:ScanSpellbook(bookType, numSpells, gen, offset)
+	local changed = false
+	offset = offset or 0
 
-	function lib:HasSpells()
-		return next(byId) and lib.generation > 0
+	for index = offset + 1, offset + numSpells do
+		local spellType, id1 = GetSpellBookItemInfo(index, bookType)
+		if spellType == "SPELL" then
+			local link = GetSpellLink(index, bookType)
+			local id2, name = strmatch(link, "spell:(%d+)|h%[(.+)%]")
+			changed = lib:FoundSpell(tonumber(id2), name, bookType) or changed
+			if id1 ~= id2 then
+				changed = lib:FoundSpell(id1, GetSpellBookItemName(index, bookType), bookType) or changed
+			end
+		elseif spellType == "FLYOUT" then
+			changed = lib:ScanFlyout(id1, bookType) or changed
+		elseif not spellType then
+			break
+		end
 	end
 
+	return changed
+end
+
+-- Scan one companion list
+function lib:ScanCompanions(companionType, gen)
+	local changed = false
+
+	for index = 1, GetNumCompanions(companionType) do
+		local _, name, id = GetCompanionInfo(companionType, index)
+		if name then
+			changed = self:FoundSpell(id, name, companionType) or changed
+		end
+	end
+
+	return changed
+end
+
+function lib:ScanSpellbooks()
+	local gen = lib.generation + 1
+	lib.generation = gen
+
+	-- Scan spell tabs
+	local changed = false
+	for tab = 1, 2 do
+		local name, _, offset, numSlots = GetSpellTabInfo(tab)
+		changed = lib:ScanSpellbook(BOOKTYPE_SPELL, numSlots, gen, offset) or changed
+	end
+
+	-- Scan mounts and critters
+	changed = lib:ScanCompanions("MOUNT", gen) or changed
+	changed = lib:ScanCompanions("CRITTER", gen) or changed
+
+	-- Scan pet spells
+	local numPetSpells = HasPetSpells()
+	if numPetSpells then
+		changed = lib:ScanSpellbook(BOOKTYPE_PET, numPetSpells, gen) or changed
+	end
+
+	-- Remove old spells
+	for id, spellGen in pairs(lib.spells.lastSeen) do
+		if spellGen ~= gen then
+			changed = true
+			local name = byId[id]
+			lib.callbacks:Fire("LibSpellbook_Spell_Removed", id, book[id], name)
+			byName[name] = nil
+			byId[id] = nil
+			book[id] = nil
+			lastSeen[id] = nil
+		end
+	end
+
+	-- Fire an event if anything was added or removed
+	if changed then
+		lib.callbacks:Fire("LibSpellbook_Spells_Changed")
+	end
+end
+
+function lib:HasSpells()
+	return next(byId) and lib.generation > 0
 end
