@@ -95,6 +95,17 @@ function lib:GetBookType(spell)
 	return id and book[id]
 end
 
+-- Filtering iterator
+local function iterator(bookType, id)
+	local name
+	repeat
+		id, name = next(byId, id)
+		if id and book[id] == bookType then
+			return id, name
+		end
+	until not id
+end
+
 --- Iterate through all spells.
 -- @name LibSpellbook:IterateSpells
 -- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, or nil for both.
@@ -104,16 +115,10 @@ end
 --     -- Do something
 --   end
 function lib:IterateSpells(bookType)
-	if not bookType then
-		return pairs(byId)
+	if bookType then
+		return iterator, bookType
 	else
-		return function(t, k)
-			local v
-			repeat
-				k, v = next(t, k)
-			until not k or v == bookType
-			return k, v
-		end, byId
+		return pairs(byId)
 	end
 end
 
