@@ -31,10 +31,29 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 8
+local MAJOR, MINOR = "LibSpellbook-1.0", 9
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
+
+local _G = _G
+local BOOKTYPE_PET = _G.BOOKTYPE_PET
+local BOOKTYPE_SPELL = _G.BOOKTYPE_SPELL
+local CreateFrame = _G.CreateFrame
+local GetCompanionInfo = _G.GetCompanionInfo
+local GetFlyoutInfo = _G.GetFlyoutInfo
+local GetFlyoutSlotInfo = _G.GetFlyoutSlotInfo
+local GetNumCompanions = _G.GetNumCompanions
+local GetSpellBookItemInfo = _G.GetSpellBookItemInfo
+local GetSpellBookItemName = _G.GetSpellBookItemName
+local GetSpellLink = _G.GetSpellLink
+local GetSpellTabInfo = _G.GetSpellTabInfo
+local HasPetSpells = _G.HasPetSpells
+local next = _G.next
+local pairs = _G.pairs
+local strmatch = _G.strmatch
+local tonumber = _G.tonumber
+local type = _G.type
 
 if not lib.spells then
 	lib.spells = {
@@ -78,7 +97,7 @@ end
 -- @param spell (string|number) The spell name, link or identifier.
 -- @return ids A table with spell ids as keys.
 function lib:GetAllIds(spell)
-	id = lib:Resolve(spell)
+	local id = lib:Resolve(spell)
 	local name = id and byId[id]
 	return name and byName[name]
 end
