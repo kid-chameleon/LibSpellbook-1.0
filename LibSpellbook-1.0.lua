@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 9
+local MAJOR, MINOR = "LibSpellbook-1.0", 10
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
@@ -39,6 +39,7 @@ if not lib then return end
 local _G = _G
 local BOOKTYPE_PET = _G.BOOKTYPE_PET
 local BOOKTYPE_SPELL = _G.BOOKTYPE_SPELL
+local NUM_GLYPH_SLOTS = _G.NUM_GLYPH_SLOTS
 local CreateFrame = _G.CreateFrame
 local GetCompanionInfo = _G.GetCompanionInfo
 local GetFlyoutInfo = _G.GetFlyoutInfo
@@ -47,7 +48,9 @@ local GetNumCompanions = _G.GetNumCompanions
 local GetSpellBookItemInfo = _G.GetSpellBookItemInfo
 local GetSpellBookItemName = _G.GetSpellBookItemName
 local GetSpellLink = _G.GetSpellLink
+local GetSpellInfo = _G.GetSpellInfo
 local GetSpellTabInfo = _G.GetSpellTabInfo
+local GetGlyphSocketInfo = _G.GetGlyphSocketInfo
 local HasPetSpells = _G.HasPetSpells
 local next = _G.next
 local pairs = _G.pairs
@@ -210,6 +213,20 @@ function lib:ScanSpellbook(bookType, numSpells, offset)
 	return changed
 end
 
+function lib:ScanGlyphs()
+	local changed = false
+
+	for index = 1, NUM_GLYPH_SLOTS do
+		local _, _, _, id = GetGlyphSocketInfo(index)
+		if id then
+			local name = GetSpellInfo(id) -- not all glyph spells have links - Glyph of Death's Embrace
+			changed = lib:FoundSpell(tonumber(id), name, "GLYPH") or changed
+		end
+	end
+
+	return changed
+end
+
 -- Scan one companion list
 function lib:ScanCompanions(companionType)
 	local changed = false
@@ -243,6 +260,9 @@ function lib:ScanSpellbooks()
 	if numPetSpells then
 		changed = lib:ScanSpellbook(BOOKTYPE_PET, numPetSpells) or changed
 	end
+
+	-- Scan glyphs
+	changed = lib:ScanGlyphs()
 
 	-- Remove old spells
 	local current = lib.generation
