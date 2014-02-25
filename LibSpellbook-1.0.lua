@@ -262,7 +262,7 @@ function lib:ScanSpellbooks()
 	end
 
 	-- Scan glyphs
-	changed = lib:ScanGlyphs()
+	changed = lib:ScanGlyphs() or changed
 
 	-- Remove old spells
 	local current = lib.generation
