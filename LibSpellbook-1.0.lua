@@ -1,6 +1,6 @@
 --[[
 LibSpellbook-1.0 - Track the spellbook to parry to IsSpellKnown discrepancies.
-Copyright (C) 2013 Adirelle (adirelle@gmail.com)
+Copyright (C) 2013-2014 Adirelle (adirelle@gmail.com)
 
 All rights reserved.
 
@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 10
+local MAJOR, MINOR = "LibSpellbook-1.0", 11
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
