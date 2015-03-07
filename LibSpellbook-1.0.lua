@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 11
+local MAJOR, MINOR = "LibSpellbook-1.0", 12
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
@@ -45,6 +45,8 @@ local GetCompanionInfo = _G.GetCompanionInfo
 local GetFlyoutInfo = _G.GetFlyoutInfo
 local GetFlyoutSlotInfo = _G.GetFlyoutSlotInfo
 local GetNumCompanions = _G.GetNumCompanions
+local GetSpecialization = _G.GetSpecialization
+local GetSpecializationMasterySpells = _G.GetSpecializationMasterySpells
 local GetSpellBookItemInfo = _G.GetSpellBookItemInfo
 local GetSpellBookItemName = _G.GetSpellBookItemName
 local GetSpellLink = _G.GetSpellLink
@@ -52,6 +54,7 @@ local GetSpellInfo = _G.GetSpellInfo
 local GetSpellTabInfo = _G.GetSpellTabInfo
 local GetGlyphSocketInfo = _G.GetGlyphSocketInfo
 local HasPetSpells = _G.HasPetSpells
+local IsPlayerSpell = _G.IsPlayerSpell
 local next = _G.next
 local pairs = _G.pairs
 local strmatch = _G.strmatch
@@ -121,7 +124,7 @@ end
 --- Return the spellbook.
 -- @name LibSpellbook:GetBookType
 -- @param spell (string|number) The spell name, link or identifier.
--- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet") or nil if the spell if unknown.
+-- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "GLYPH", "MASTERY", "MOUNT", "CRITTER" or nil if the spell if unknown.
 function lib:GetBookType(spell)
 	local id = lib:Resolve(spell)
 	return id and book[id]
@@ -227,6 +230,20 @@ function lib:ScanGlyphs()
 	return changed
 end
 
+function lib:ScanMasterySpells()
+	local changed = false
+	-- actually there is only one mastery spell per spec
+	-- however this returns the spell id regardless of whether the spell is known
+	local id = GetSpecializationMasterySpells(GetSpecialization() or 0) or 1
+
+	if IsPlayerSpell(id) then
+		local name = GetSpellInfo(id)
+		changed = lib:FoundSpell(id, name, "MASTERY") or changed
+	end
+
+	return changed
+end
+
 -- Scan one companion list
 function lib:ScanCompanions(companionType)
 	local changed = false
@@ -263,6 +280,9 @@ function lib:ScanSpellbooks()
 
 	-- Scan glyphs
 	changed = lib:ScanGlyphs() or changed
+
+	-- Scan mastery spells for the current specialization
+	changed = lib:ScanMasterySpells() or changed
 
 	-- Remove old spells
 	local current = lib.generation
