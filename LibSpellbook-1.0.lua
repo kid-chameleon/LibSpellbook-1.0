@@ -39,7 +39,6 @@ if not lib then return end
 local _G = _G
 local BOOKTYPE_PET = _G.BOOKTYPE_PET
 local BOOKTYPE_SPELL = _G.BOOKTYPE_SPELL
-local NUM_GLYPH_SLOTS = _G.NUM_GLYPH_SLOTS
 local CreateFrame = _G.CreateFrame
 local GetCompanionInfo = _G.GetCompanionInfo
 local GetFlyoutInfo = _G.GetFlyoutInfo
@@ -52,7 +51,6 @@ local GetSpellBookItemName = _G.GetSpellBookItemName
 local GetSpellLink = _G.GetSpellLink
 local GetSpellInfo = _G.GetSpellInfo
 local GetSpellTabInfo = _G.GetSpellTabInfo
-local GetGlyphSocketInfo = _G.GetGlyphSocketInfo
 local HasPetSpells = _G.HasPetSpells
 local IsPlayerSpell = _G.IsPlayerSpell
 local next = _G.next
@@ -124,7 +122,7 @@ end
 --- Return the spellbook.
 -- @name LibSpellbook:GetBookType
 -- @param spell (string|number) The spell name, link or identifier.
--- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "GLYPH", "MASTERY", "MOUNT", "CRITTER" or nil if the spell if unknown.
+-- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "MASTERY", "MOUNT", "CRITTER" or nil if the spell if unknown.
 function lib:GetBookType(spell)
 	local id = lib:Resolve(spell)
 	return id and book[id]
@@ -216,20 +214,6 @@ function lib:ScanSpellbook(bookType, numSpells, offset)
 	return changed
 end
 
-function lib:ScanGlyphs()
-	local changed = false
-
-	for index = 1, NUM_GLYPH_SLOTS do
-		local _, _, _, id = GetGlyphSocketInfo(index)
-		if id then
-			local name = GetSpellInfo(id) -- not all glyph spells have links - Glyph of Death's Embrace
-			changed = lib:FoundSpell(tonumber(id), name, "GLYPH") or changed
-		end
-	end
-
-	return changed
-end
-
 function lib:ScanMasterySpells()
 	local changed = false
 	-- actually there is only one mastery spell per spec
@@ -277,9 +261,6 @@ function lib:ScanSpellbooks()
 	if numPetSpells then
 		changed = lib:ScanSpellbook(BOOKTYPE_PET, numPetSpells) or changed
 	end
-
-	-- Scan glyphs
-	changed = lib:ScanGlyphs() or changed
 
 	-- Scan mastery spells for the current specialization
 	changed = lib:ScanMasterySpells() or changed
