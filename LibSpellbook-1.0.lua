@@ -200,7 +200,9 @@ function lib:ScanSpellbook(bookType, numSpells, offset)
 		if spellType == "SPELL" then
 			local link = GetSpellLink(index, bookType)
 			local id2, name = strmatch(link, "spell:(%d+)|h%[(.+)%]")
-			changed = lib:FoundSpell(tonumber(id2), name, bookType) or changed
+			if id2 then
+				changed = lib:FoundSpell(tonumber(id2), name, bookType) or changed
+			end
 			if id1 ~= id2 then
 				changed = lib:FoundSpell(id1, GetSpellBookItemName(index, bookType), bookType) or changed
 			end
