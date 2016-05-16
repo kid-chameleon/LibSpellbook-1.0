@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 12
+local MAJOR, MINOR = "LibSpellbook-1.0", 13
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
@@ -51,6 +51,8 @@ local GetSpellBookItemName = _G.GetSpellBookItemName
 local GetSpellLink = _G.GetSpellLink
 local GetSpellInfo = _G.GetSpellInfo
 local GetSpellTabInfo = _G.GetSpellTabInfo
+local GetTalentInfo = _G.GetTalentInfo
+local GetMaxTalentTier = _G.GetMaxTalentTier
 local HasPetSpells = _G.HasPetSpells
 local IsPlayerSpell = _G.IsPlayerSpell
 local next = _G.next
@@ -122,7 +124,7 @@ end
 --- Return the spellbook.
 -- @name LibSpellbook:GetBookType
 -- @param spell (string|number) The spell name, link or identifier.
--- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "MASTERY", "MOUNT", "CRITTER" or nil if the spell if unknown.
+-- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "TALENT", "MASTERY", "MOUNT", "CRITTER" or nil if the spell if unknown.
 function lib:GetBookType(spell)
 	local id = lib:Resolve(spell)
 	return id and book[id]
@@ -242,6 +244,22 @@ function lib:ScanCompanions(companionType)
 	return changed
 end
 
+function lib:ScanTalents()
+	local changed = false
+
+	for tier = 1, GetMaxTalentTier() do
+		for column = 1, _G.NUM_TALENT_COLUMNS do
+			local _, _, _, _, _, id, _, _, _, isKnown = GetTalentInfo(tier, column, 1)
+			if isKnown then
+				local name = GetSpellInfo(id)
+				changed = self:FoundSpell(id, name, "TALENT")
+			end
+		end
+	end
+
+	return changed
+end
+
 function lib:ScanSpellbooks()
 	lib.generation = lib.generation + 1
 
@@ -264,6 +282,9 @@ function lib:ScanSpellbooks()
 
 	-- Scan mastery spells for the current specialization
 	changed = lib:ScanMasterySpells() or changed
+
+	-- Scan talents
+	changed = lib:ScanTalents() or changed
 
 	-- Remove old spells
 	local current = lib.generation
