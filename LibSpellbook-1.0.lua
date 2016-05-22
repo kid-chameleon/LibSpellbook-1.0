@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 13
+local MAJOR, MINOR = "LibSpellbook-1.0", 14
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
@@ -39,10 +39,15 @@ if not lib then return end
 local _G = _G
 local BOOKTYPE_PET = _G.BOOKTYPE_PET
 local BOOKTYPE_SPELL = _G.BOOKTYPE_SPELL
+local ClearArtifactData = _G.C_ArtifactUI.Clear
 local CreateFrame = _G.CreateFrame
+local GetArtifactPowerInfo = _G.C_ArtifactUI.GetPowerInfo
+local GetArtifactPowers = _G.C_ArtifactUI.GetPowers
 local GetCompanionInfo = _G.GetCompanionInfo
 local GetFlyoutInfo = _G.GetFlyoutInfo
 local GetFlyoutSlotInfo = _G.GetFlyoutSlotInfo
+local GetInventoryItemQuality = _G.GetInventoryItemQuality
+local GetInventoryItemEquippedUnusable = _G.GetInventoryItemEquippedUnusable
 local GetNumCompanions = _G.GetNumCompanions
 local GetSpecialization = _G.GetSpecialization
 local GetSpecializationMasterySpells = _G.GetSpecializationMasterySpells
@@ -55,11 +60,15 @@ local GetTalentInfo = _G.GetTalentInfo
 local GetMaxTalentTier = _G.GetMaxTalentTier
 local HasPetSpells = _G.HasPetSpells
 local IsPlayerSpell = _G.IsPlayerSpell
+local INVSLOT_MAINHAND = _G.INVSLOT_MAINHAND
+local LE_ITEM_QUALITY_ARTIFACT = _G.LE_ITEM_QUALITY_ARTIFACT
 local next = _G.next
 local pairs = _G.pairs
+local SocketInventoryItem = _G.SocketInventoryItem
 local strmatch = _G.strmatch
 local tonumber = _G.tonumber
 local type = _G.type
+local UIParent = _G.UIParent
 
 if not lib.spells then
 	lib.spells = {
@@ -124,7 +133,7 @@ end
 --- Return the spellbook.
 -- @name LibSpellbook:GetBookType
 -- @param spell (string|number) The spell name, link or identifier.
--- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "TALENT", "MASTERY", "MOUNT", "CRITTER" or nil if the spell if unknown.
+-- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "TALENT", "MASTERY", "ARTIFACT", "MOUNT", "CRITTER" or nil if the spell if unknown.
 function lib:GetBookType(spell)
 	local id = lib:Resolve(spell)
 	return id and book[id]
@@ -260,6 +269,43 @@ function lib:ScanTalents()
 	return changed
 end
 
+function lib:ScanArtifact()
+	local changed = false
+
+	if GetInventoryItemQuality("player", INVSLOT_MAINHAND) == LE_ITEM_QUALITY_ARTIFACT and
+			not GetInventoryItemEquippedUnusable("player", INVSLOT_MAINHAND) then
+		-- prevent the artifact ui from opening if it is not open
+		local ArtifactFrame = _G.ArtifactFrame
+		local artifactUIShown = ArtifactFrame and ArtifactFrame:IsShown()
+		if not artifactUIShown then
+			UIParent:UnregisterEvent("ARTIFACT_UPDATE")
+			if ArtifactFrame then
+				ArtifactFrame:UnregisterEvent("ARTIFACT_UPDATE") -- TODO: wait for ARTIFACT_UPDATE before getting the info?
+			end
+			SocketInventoryItem(INVSLOT_MAINHAND)
+		end
+
+		local powers = GetArtifactPowers()
+		for i = 1, #powers do
+			local id, _, currentRank = GetArtifactPowerInfo(powers[i])
+			if currentRank > 0 then
+				local name = GetSpellInfo(id)
+				changed = self:FoundSpell(id, name, "ARTIFACT")
+			end
+		end
+		-- restore defaults
+		if not artifactUIShown then
+			ClearArtifactData()
+			if ArtifactFrame then
+				ArtifactFrame:RegisterEvent("ARTIFACT_UPDATE")
+			end
+			UIParent:RegisterEvent("ARTIFACT_UPDATE")
+		end
+	end
+
+	return changed
+end
+
 function lib:ScanSpellbooks()
 	lib.generation = lib.generation + 1
 
@@ -285,6 +331,9 @@ function lib:ScanSpellbooks()
 
 	-- Scan talents
 	changed = lib:ScanTalents() or changed
+
+	-- Scan artifact
+	changed = lib:ScanArtifact() or changed
 
 	-- Remove old spells
 	local current = lib.generation
