@@ -31,16 +31,25 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 14
+local MAJOR, MINOR = "LibSpellbook-1.0", 15
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
+-- constants
 local _G = _G
 local BOOKTYPE_PET = _G.BOOKTYPE_PET
 local BOOKTYPE_SPELL = _G.BOOKTYPE_SPELL
+local INVSLOT_MAINHAND = _G.INVSLOT_MAINHAND
+local LE_ITEM_QUALITY_ARTIFACT = _G.LE_ITEM_QUALITY_ARTIFACT
+local MAX_PVP_TALENT_COLUMNS = _G.MAX_PVP_TALENT_COLUMNS
+local MAX_PVP_TALENT_TIERS = _G.MAX_PVP_TALENT_TIERS
+local MAX_TALENT_TIERS = _G.MAX_TALENT_TIERS
+local NUM_TALENT_COLUMNS = _G.NUM_TALENT_COLUMNS
+-- blizzard api
 local ClearArtifactData = _G.C_ArtifactUI.Clear
 local CreateFrame = _G.CreateFrame
+local GetActiveSpecGroup = _G.GetActiveSpecGroup
 local GetArtifactPowerInfo = _G.C_ArtifactUI.GetPowerInfo
 local GetArtifactPowers = _G.C_ArtifactUI.GetPowers
 local GetCompanionInfo = _G.GetCompanionInfo
@@ -49,6 +58,7 @@ local GetFlyoutSlotInfo = _G.GetFlyoutSlotInfo
 local GetInventoryItemQuality = _G.GetInventoryItemQuality
 local GetInventoryItemEquippedUnusable = _G.GetInventoryItemEquippedUnusable
 local GetNumCompanions = _G.GetNumCompanions
+local GetPvpTalentInfo = _G.GetPvpTalentInfo
 local GetSpecialization = _G.GetSpecialization
 local GetSpecializationMasterySpells = _G.GetSpecializationMasterySpells
 local GetSpellBookItemInfo = _G.GetSpellBookItemInfo
@@ -57,18 +67,16 @@ local GetSpellLink = _G.GetSpellLink
 local GetSpellInfo = _G.GetSpellInfo
 local GetSpellTabInfo = _G.GetSpellTabInfo
 local GetTalentInfo = _G.GetTalentInfo
-local GetMaxTalentTier = _G.GetMaxTalentTier
 local HasPetSpells = _G.HasPetSpells
 local IsPlayerSpell = _G.IsPlayerSpell
-local INVSLOT_MAINHAND = _G.INVSLOT_MAINHAND
-local LE_ITEM_QUALITY_ARTIFACT = _G.LE_ITEM_QUALITY_ARTIFACT
+local SocketInventoryItem = _G.SocketInventoryItem
+local UIParent = _G.UIParent
+-- lua api
 local next = _G.next
 local pairs = _G.pairs
-local SocketInventoryItem = _G.SocketInventoryItem
 local strmatch = _G.strmatch
 local tonumber = _G.tonumber
 local type = _G.type
-local UIParent = _G.UIParent
 
 if not lib.spells then
 	lib.spells = {
@@ -120,7 +128,7 @@ end
 --- Return whether the player or her pet knowns a spell.
 -- @name LibSpellbook:IsKnown
 -- @param spell (string|number) The spell name, link or identifier.
--- @param bookType (string) The spellbook to look into, either BOOKTYPE_SPELL, BOOKTYPE_PET, or nil (=any).
+-- @param bookType (string) The spellbook to look into, either BOOKTYPE_SPELL, BOOKTYPE_PET,"TALENT", "PVP", "MASTERY", "ARTIFACT", "MOUNT", "CRITTER" or nil (=any).
 -- @return True if the spell exists in the given spellbook (o
 function lib:IsKnown(spell, bookType)
 	local id = lib:Resolve(spell)
@@ -133,7 +141,7 @@ end
 --- Return the spellbook.
 -- @name LibSpellbook:GetBookType
 -- @param spell (string|number) The spell name, link or identifier.
--- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "TALENT", "MASTERY", "ARTIFACT", "MOUNT", "CRITTER" or nil if the spell if unknown.
+-- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "TALENT", "PVP", "MASTERY", "ARTIFACT", "MOUNT", "CRITTER" or nil if the spell if unknown.
 function lib:GetBookType(spell)
 	local id = lib:Resolve(spell)
 	return id and book[id]
@@ -152,7 +160,7 @@ end
 
 --- Iterate through all spells.
 -- @name LibSpellbook:IterateSpells
--- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, or nil for both.
+-- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, "TALENT", "PVP", "MASTERY", "ARTIFACT", "MOUNT", "CRITTER" or nil for all.
 -- @return An iterator and a table, suitable to use in "in" part of a "for ... in" loop.
 -- @usage
 --   for id, name in LibSpellbook:IterateSpells(BOOKTYPE_SPELL) do
@@ -256,12 +264,31 @@ end
 function lib:ScanTalents()
 	local changed = false
 
-	for tier = 1, GetMaxTalentTier() do
-		for column = 1, _G.NUM_TALENT_COLUMNS do
-			local _, _, _, _, _, id, _, _, _, isKnown = GetTalentInfo(tier, column, 1)
+	local activeSpec = GetActiveSpecGroup()
+
+	for tier = 1, MAX_TALENT_TIERS do
+		for column = 1, NUM_TALENT_COLUMNS do
+			local _, _, _, _, _, id, _, _, _, isKnown = GetTalentInfo(tier, column, activeSpec)
 			if isKnown then
 				local name = GetSpellInfo(id)
 				changed = self:FoundSpell(id, name, "TALENT")
+			end
+		end
+	end
+
+	return changed
+end
+
+function lib:ScanPvpTalents()
+	local changed = false
+
+	local activeSpec = GetActiveSpecGroup()
+
+	for tier = 1, MAX_PVP_TALENT_TIERS do
+		for column = 1, MAX_PVP_TALENT_COLUMNS do
+			local _, name, _, selected, _, id = GetPvpTalentInfo(tier, column, activeSpec)
+			if selected then
+				changed = self:FoundSpell(id, name, "PVP")
 			end
 		end
 	end
@@ -280,7 +307,7 @@ function lib:ScanArtifact()
 		if not artifactUIShown then
 			UIParent:UnregisterEvent("ARTIFACT_UPDATE")
 			if ArtifactFrame then
-				ArtifactFrame:UnregisterEvent("ARTIFACT_UPDATE") -- TODO: wait for ARTIFACT_UPDATE before getting the info?
+				ArtifactFrame:UnregisterEvent("ARTIFACT_UPDATE")
 			end
 			SocketInventoryItem(INVSLOT_MAINHAND)
 		end
@@ -331,6 +358,8 @@ function lib:ScanSpellbooks()
 
 	-- Scan talents
 	changed = lib:ScanTalents() or changed
+
+	changed = lib:ScanPvpTalents() or changed
 
 	-- Scan artifact
 	changed = lib:ScanArtifact() or changed
