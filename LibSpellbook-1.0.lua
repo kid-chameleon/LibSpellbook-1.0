@@ -120,7 +120,7 @@ end
 -- @param spell (string|number) The spell name, link or identifier.
 -- @return ids A table with spell ids as keys.
 function lib:GetAllIds(spell)
-	local id = lib:Resolve(spell)
+	local id = self:Resolve(spell)
 	local name = id and byId[id]
 	return name and byName[name]
 end
@@ -131,7 +131,7 @@ end
 -- @param bookType (string) The spellbook to look into, either BOOKTYPE_SPELL, BOOKTYPE_PET,"TALENT", "PVP", "MASTERY", "ARTIFACT", "MOUNT", "CRITTER" or nil (=any).
 -- @return True if the spell exists in the given spellbook (o
 function lib:IsKnown(spell, bookType)
-	local id = lib:Resolve(spell)
+	local id = self:Resolve(spell)
 	if id and byId[id] then
 		return bookType == nil or bookType == book[id]
 	end
@@ -143,7 +143,7 @@ end
 -- @param spell (string|number) The spell name, link or identifier.
 -- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "TALENT", "PVP", "MASTERY", "ARTIFACT", "MOUNT", "CRITTER" or nil if the spell if unknown.
 function lib:GetBookType(spell)
-	local id = lib:Resolve(spell)
+	local id = self:Resolve(spell)
 	return id and book[id]
 end
 
@@ -185,7 +185,7 @@ function lib:FoundSpell(id, name, bookType)
 	book[id] = bookType
 	lastSeen[id] = lib.generation
 	if isNew then
-		lib.callbacks:Fire("LibSpellbook_Spell_Added", id, bookType, name)
+		self.callbacks:Fire("LibSpellbook_Spell_Added", id, bookType, name)
 		return true
 	end
 end
@@ -219,12 +219,12 @@ function lib:ScanSpellbook(bookType, numSpells, offset)
 		if spellType == "SPELL" then
 			local link = GetSpellLink(index, bookType)
 			local id2, name = strmatch(link, "spell:(%d+):%d+\124h%[(.+)%]")
-			changed = lib:FoundSpell(tonumber(id2), name, bookType) or changed
+			changed = self:FoundSpell(tonumber(id2), name, bookType) or changed
 			if id1 ~= id2 then
-				changed = lib:FoundSpell(id1, GetSpellBookItemName(index, bookType), bookType) or changed
+				changed = self:FoundSpell(id1, GetSpellBookItemName(index, bookType), bookType) or changed
 			end
 		elseif spellType == "FLYOUT" then
-			changed = lib:ScanFlyout(id1, bookType) or changed
+			changed = self:ScanFlyout(id1, bookType) or changed
 		elseif not spellType then
 			break
 		end
@@ -241,7 +241,7 @@ function lib:ScanMasterySpells()
 
 	if IsPlayerSpell(id) then
 		local name = GetSpellInfo(id)
-		changed = lib:FoundSpell(id, name, "MASTERY") or changed
+		changed = self:FoundSpell(id, name, "MASTERY") or changed
 	end
 
 	return changed
@@ -334,43 +334,43 @@ function lib:ScanArtifact()
 end
 
 function lib:ScanSpellbooks()
-	lib.generation = lib.generation + 1
+	self.generation = self.generation + 1
 
 	-- Scan spell tabs
 	local changed = false
 	for tab = 1, 2 do
-		local name, _, offset, numSlots = GetSpellTabInfo(tab)
+		local _, _, offset, numSlots = GetSpellTabInfo(tab)
 		changed = lib:ScanSpellbook(BOOKTYPE_SPELL, numSlots, offset) or changed
 	end
 
 	-- Scan mounts and critters
-	changed = lib:ScanCompanions("MOUNT") or changed
-	changed = lib:ScanCompanions("CRITTER") or changed
+	changed = self:ScanCompanions("MOUNT") or changed
+	changed = self:ScanCompanions("CRITTER") or changed
 
 	-- Scan pet spells
 	local numPetSpells = HasPetSpells()
 	if numPetSpells then
-		changed = lib:ScanSpellbook(BOOKTYPE_PET, numPetSpells) or changed
+		changed = self:ScanSpellbook(BOOKTYPE_PET, numPetSpells) or changed
 	end
 
 	-- Scan mastery spells for the current specialization
-	changed = lib:ScanMasterySpells() or changed
+	changed = self:ScanMasterySpells() or changed
 
 	-- Scan talents
-	changed = lib:ScanTalents() or changed
+	changed = self:ScanTalents() or changed
 
-	changed = lib:ScanPvpTalents() or changed
+	changed = self:ScanPvpTalents() or changed
 
 	-- Scan artifact
-	changed = lib:ScanArtifact() or changed
+	changed = self:ScanArtifact() or changed
 
 	-- Remove old spells
-	local current = lib.generation
-	for id, gen in pairs(lib.spells.lastSeen) do
+	local current = self.generation
+	for id, gen in pairs(self.spells.lastSeen) do
 		if gen ~= current then
 			changed = true
 			local name = byId[id]
-			lib.callbacks:Fire("LibSpellbook_Spell_Removed", id, book[id], name)
+			self.callbacks:Fire("LibSpellbook_Spell_Removed", id, book[id], name)
 			byName[name][id] = nil
 			if not next(byName[name]) then
 				byName[name] = nil
@@ -383,10 +383,10 @@ function lib:ScanSpellbooks()
 
 	-- Fire an event if anything was added or removed
 	if changed then
-		lib.callbacks:Fire("LibSpellbook_Spells_Changed")
+		self.callbacks:Fire("LibSpellbook_Spells_Changed")
 	end
 end
 
 function lib:HasSpells()
-	return next(byId) and lib.generation > 0
+	return next(byId) and self.generation > 0
 end
