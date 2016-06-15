@@ -183,7 +183,7 @@ function lib:FoundSpell(id, name, bookType)
 	end
 	byId[id] = name
 	book[id] = bookType
-	lastSeen[id] = lib.generation
+	lastSeen[id] = self.generation
 	if isNew then
 		self.callbacks:Fire("LibSpellbook_Spell_Added", id, bookType, name)
 		return true
@@ -271,7 +271,7 @@ function lib:ScanTalents()
 			local _, _, _, _, _, id, _, _, _, isKnown = GetTalentInfo(tier, column, activeSpec)
 			if isKnown then
 				local name = GetSpellInfo(id)
-				changed = self:FoundSpell(id, name, "TALENT")
+				changed = self:FoundSpell(id, name, "TALENT") or changed
 			end
 		end
 	end
@@ -288,7 +288,7 @@ function lib:ScanPvpTalents()
 		for column = 1, MAX_PVP_TALENT_COLUMNS do
 			local _, name, _, selected, _, id = GetPvpTalentInfo(tier, column, activeSpec)
 			if selected then
-				changed = self:FoundSpell(id, name, "PVP")
+				changed = self:FoundSpell(id, name, "PVP") or changed
 			end
 		end
 	end
@@ -317,7 +317,7 @@ function lib:ScanArtifact()
 			local id, _, currentRank = GetArtifactPowerInfo(powers[i])
 			if currentRank > 0 then
 				local name = GetSpellInfo(id)
-				changed = self:FoundSpell(id, name, "ARTIFACT")
+				changed = self:FoundSpell(id, name, "ARTIFACT") or changed
 			end
 		end
 		-- restore defaults
@@ -340,7 +340,7 @@ function lib:ScanSpellbooks()
 	local changed = false
 	for tab = 1, 2 do
 		local _, _, offset, numSlots = GetSpellTabInfo(tab)
-		changed = lib:ScanSpellbook(BOOKTYPE_SPELL, numSlots, offset) or changed
+		changed = self:ScanSpellbook(BOOKTYPE_SPELL, numSlots, offset) or changed
 	end
 
 	-- Scan mounts and critters
