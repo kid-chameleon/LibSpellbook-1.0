@@ -68,6 +68,7 @@ local GetSpellInfo = _G.GetSpellInfo
 local GetSpellTabInfo = _G.GetSpellTabInfo
 local GetTalentInfo = _G.GetTalentInfo
 local HasPetSpells = _G.HasPetSpells
+local InCombatLockdown = _G.InCombatLockdown
 local SocketInventoryItem = _G.SocketInventoryItem
 local UIParent = _G.UIParent
 -- lua api
@@ -342,23 +343,21 @@ function lib:ScanSpellbooks()
 		changed = self:ScanSpellbook(BOOKTYPE_SPELL, numSlots, offset) or changed
 	end
 
-	-- Scan mounts and critters
-	changed = self:ScanMounts() or changed
-	changed = self:ScanCompanions("CRITTER") or changed
-
 	-- Scan pet spells
 	local numPetSpells = HasPetSpells()
 	if numPetSpells then
 		changed = self:ScanSpellbook(BOOKTYPE_PET, numPetSpells) or changed
 	end
 
-	-- Scan talents
-	changed = self:ScanTalents() or changed
+	local inCombat = InCombatLockdown()
 
-	changed = self:ScanPvpTalents() or changed
-
-	-- Scan artifact
-	changed = self:ScanArtifact() or changed
+	if not inCombat then
+		changed = self:ScanTalents() or changed
+		changed = self:ScanPvpTalents() or changed
+		changed = self:ScanArtifact() or changed
+		changed = self:ScanMounts() or changed
+		changed = self:ScanCompanions("CRITTER") or changed
+	end
 
 	-- Remove old spells
 	local current = self.generation
@@ -366,14 +365,17 @@ function lib:ScanSpellbooks()
 		if gen ~= current then
 			changed = true
 			local name = byId[id]
-			self.callbacks:Fire("LibSpellbook_Spell_Removed", id, book[id], name)
-			byName[name][id] = nil
-			if not next(byName[name]) then
-				byName[name] = nil
+			local bookType = book[id]
+			if inCombat and (bookType == "spell" or bookType == "pet") or not inCombat then
+				self.callbacks:Fire("LibSpellbook_Spell_Removed", id, book[id], name)
+				byName[name][id] = nil
+				if not next(byName[name]) then
+					byName[name] = nil
+				end
+				byId[id] = nil
+				book[id] = nil
+				lastSeen[id] = nil
 			end
-			byId[id] = nil
-			book[id] = nil
-			lastSeen[id] = nil
 		end
 	end
 
