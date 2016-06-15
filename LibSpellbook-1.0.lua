@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 15
+local MAJOR, MINOR = "LibSpellbook-1.0", 16
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
@@ -128,7 +128,7 @@ end
 --- Return whether the player or her pet knowns a spell.
 -- @name LibSpellbook:IsKnown
 -- @param spell (string|number) The spell name, link or identifier.
--- @param bookType (string) The spellbook to look into, either BOOKTYPE_SPELL, BOOKTYPE_PET,"TALENT", "PVP", "MASTERY", "ARTIFACT", "MOUNT", "CRITTER" or nil (=any).
+-- @param bookType (string) The spellbook to look into, either BOOKTYPE_SPELL, BOOKTYPE_PET,"TALENT", "PVP", "ARTIFACT", "MOUNT", "CRITTER" or nil (=any).
 -- @return True if the spell exists in the given spellbook (o
 function lib:IsKnown(spell, bookType)
 	local id = self:Resolve(spell)
@@ -141,7 +141,7 @@ end
 --- Return the spellbook.
 -- @name LibSpellbook:GetBookType
 -- @param spell (string|number) The spell name, link or identifier.
--- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "TALENT", "PVP", "MASTERY", "ARTIFACT", "MOUNT", "CRITTER" or nil if the spell if unknown.
+-- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "TALENT", "PVP", "ARTIFACT", "MOUNT", "CRITTER" or nil if the spell if unknown.
 function lib:GetBookType(spell)
 	local id = self:Resolve(spell)
 	return id and book[id]
@@ -160,7 +160,7 @@ end
 
 --- Iterate through all spells.
 -- @name LibSpellbook:IterateSpells
--- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, "TALENT", "PVP", "MASTERY", "ARTIFACT", "MOUNT", "CRITTER" or nil for all.
+-- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, "TALENT", "PVP", "ARTIFACT", "MOUNT", "CRITTER" or nil for all.
 -- @return An iterator and a table, suitable to use in "in" part of a "for ... in" loop.
 -- @usage
 --   for id, name in LibSpellbook:IterateSpells(BOOKTYPE_SPELL) do
@@ -228,20 +228,6 @@ function lib:ScanSpellbook(bookType, numSpells, offset)
 		elseif not spellType then
 			break
 		end
-	end
-
-	return changed
-end
-
-function lib:ScanMasterySpells()
-	local changed = false
-	-- actually there is only one mastery spell per spec
-	-- however this returns the spell id regardless of whether the spell is known
-	local id = GetSpecializationMasterySpells(GetSpecialization() or 0) or 1
-
-	if IsPlayerSpell(id) then
-		local name = GetSpellInfo(id)
-		changed = self:FoundSpell(id, name, "MASTERY") or changed
 	end
 
 	return changed
@@ -352,9 +338,6 @@ function lib:ScanSpellbooks()
 	if numPetSpells then
 		changed = self:ScanSpellbook(BOOKTYPE_PET, numPetSpells) or changed
 	end
-
-	-- Scan mastery spells for the current specialization
-	changed = self:ScanMasterySpells() or changed
 
 	-- Scan talents
 	changed = self:ScanTalents() or changed
