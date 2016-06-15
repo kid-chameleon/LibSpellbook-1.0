@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 16
+local MAJOR, MINOR = "LibSpellbook-1.0", 17
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
@@ -57,10 +57,10 @@ local GetFlyoutInfo = _G.GetFlyoutInfo
 local GetFlyoutSlotInfo = _G.GetFlyoutSlotInfo
 local GetInventoryItemQuality = _G.GetInventoryItemQuality
 local GetInventoryItemEquippedUnusable = _G.GetInventoryItemEquippedUnusable
+local GetMountIDs = _G.C_MountJournal.GetMountIDs
+local GetMountInfoByID = _G.C_MountJournal.GetMountInfoByID
 local GetNumCompanions = _G.GetNumCompanions
 local GetPvpTalentInfo = _G.GetPvpTalentInfo
-local GetSpecialization = _G.GetSpecialization
-local GetSpecializationMasterySpells = _G.GetSpecializationMasterySpells
 local GetSpellBookItemInfo = _G.GetSpellBookItemInfo
 local GetSpellBookItemName = _G.GetSpellBookItemName
 local GetSpellLink = _G.GetSpellLink
@@ -68,7 +68,6 @@ local GetSpellInfo = _G.GetSpellInfo
 local GetSpellTabInfo = _G.GetSpellTabInfo
 local GetTalentInfo = _G.GetTalentInfo
 local HasPetSpells = _G.HasPetSpells
-local IsPlayerSpell = _G.IsPlayerSpell
 local SocketInventoryItem = _G.SocketInventoryItem
 local UIParent = _G.UIParent
 -- lua api
@@ -247,6 +246,20 @@ function lib:ScanCompanions(companionType)
 	return changed
 end
 
+function lib:ScanMounts()
+	local changed = false
+	local mountIDs = GetMountIDs()
+
+	for index = 1, #mountIDs do
+		local name, id, _, _, _, _, _, _, _, _, isCollected = GetMountInfoByID(mountIDs[index])
+		if isCollected then
+			changed = self:FoundSpell(id, name, "MOUNT") or changed
+		end
+	end
+
+	return changed
+end
+
 function lib:ScanTalents()
 	local changed = false
 
@@ -330,7 +343,7 @@ function lib:ScanSpellbooks()
 	end
 
 	-- Scan mounts and critters
-	changed = self:ScanCompanions("MOUNT") or changed
+	changed = self:ScanMounts() or changed
 	changed = self:ScanCompanions("CRITTER") or changed
 
 	-- Scan pet spells
