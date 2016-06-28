@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 17
+local MAJOR, MINOR = "LibSpellbook-1.0", 18
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
@@ -52,14 +52,10 @@ local CreateFrame = _G.CreateFrame
 local GetActiveSpecGroup = _G.GetActiveSpecGroup
 local GetArtifactPowerInfo = _G.C_ArtifactUI.GetPowerInfo
 local GetArtifactPowers = _G.C_ArtifactUI.GetPowers
-local GetCompanionInfo = _G.GetCompanionInfo
 local GetFlyoutInfo = _G.GetFlyoutInfo
 local GetFlyoutSlotInfo = _G.GetFlyoutSlotInfo
 local GetInventoryItemQuality = _G.GetInventoryItemQuality
 local GetInventoryItemEquippedUnusable = _G.GetInventoryItemEquippedUnusable
-local GetMountIDs = _G.C_MountJournal.GetMountIDs
-local GetMountInfoByID = _G.C_MountJournal.GetMountInfoByID
-local GetNumCompanions = _G.GetNumCompanions
 local GetPvpTalentInfo = _G.GetPvpTalentInfo
 local GetSpellBookItemInfo = _G.GetSpellBookItemInfo
 local GetSpellBookItemName = _G.GetSpellBookItemName
@@ -233,34 +229,6 @@ function lib:ScanSpellbook(bookType, numSpells, offset)
 	return changed
 end
 
--- Scan one companion list
-function lib:ScanCompanions(companionType)
-	local changed = false
-
-	for index = 1, GetNumCompanions(companionType) do
-		local _, name, id = GetCompanionInfo(companionType, index)
-		if name then
-			changed = self:FoundSpell(id, name, companionType) or changed
-		end
-	end
-
-	return changed
-end
-
-function lib:ScanMounts()
-	local changed = false
-	local mountIDs = GetMountIDs()
-
-	for index = 1, #mountIDs do
-		local name, id, _, _, _, _, _, _, _, _, isCollected = GetMountInfoByID(mountIDs[index])
-		if isCollected then
-			changed = self:FoundSpell(id, name, "MOUNT") or changed
-		end
-	end
-
-	return changed
-end
-
 function lib:ScanTalents()
 	local changed = false
 
@@ -355,8 +323,6 @@ function lib:ScanSpellbooks()
 		changed = self:ScanTalents() or changed
 		changed = self:ScanPvpTalents() or changed
 		changed = self:ScanArtifact() or changed
-		changed = self:ScanMounts() or changed
-		changed = self:ScanCompanions("CRITTER") or changed
 	end
 
 	-- Remove old spells
