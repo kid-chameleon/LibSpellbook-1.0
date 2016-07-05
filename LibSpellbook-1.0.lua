@@ -31,31 +31,26 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 18
+local MAJOR, MINOR = "LibSpellbook-1.0", 19
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
+
+local LAD = LibStub("LibArtifactData-1.0")
 
 -- constants
 local _G = _G
 local BOOKTYPE_PET = _G.BOOKTYPE_PET
 local BOOKTYPE_SPELL = _G.BOOKTYPE_SPELL
-local INVSLOT_MAINHAND = _G.INVSLOT_MAINHAND
-local LE_ITEM_QUALITY_ARTIFACT = _G.LE_ITEM_QUALITY_ARTIFACT
 local MAX_PVP_TALENT_COLUMNS = _G.MAX_PVP_TALENT_COLUMNS
 local MAX_PVP_TALENT_TIERS = _G.MAX_PVP_TALENT_TIERS
 local MAX_TALENT_TIERS = _G.MAX_TALENT_TIERS
 local NUM_TALENT_COLUMNS = _G.NUM_TALENT_COLUMNS
 -- blizzard api
-local ClearArtifactData = _G.C_ArtifactUI.Clear
 local CreateFrame = _G.CreateFrame
 local GetActiveSpecGroup = _G.GetActiveSpecGroup
-local GetArtifactPowerInfo = _G.C_ArtifactUI.GetPowerInfo
-local GetArtifactPowers = _G.C_ArtifactUI.GetPowers
 local GetFlyoutInfo = _G.GetFlyoutInfo
 local GetFlyoutSlotInfo = _G.GetFlyoutSlotInfo
-local GetInventoryItemQuality = _G.GetInventoryItemQuality
-local GetInventoryItemEquippedUnusable = _G.GetInventoryItemEquippedUnusable
 local GetPvpTalentInfo = _G.GetPvpTalentInfo
 local GetSpellBookItemInfo = _G.GetSpellBookItemInfo
 local GetSpellBookItemName = _G.GetSpellBookItemName
@@ -65,8 +60,6 @@ local GetSpellTabInfo = _G.GetSpellTabInfo
 local GetTalentInfo = _G.GetTalentInfo
 local HasPetSpells = _G.HasPetSpells
 local InCombatLockdown = _G.InCombatLockdown
-local SocketInventoryItem = _G.SocketInventoryItem
-local UIParent = _G.UIParent
 -- lua api
 local next = _G.next
 local pairs = _G.pairs
@@ -264,42 +257,53 @@ function lib:ScanPvpTalents()
 	return changed
 end
 
-function lib:ScanArtifact()
+local function CleanUp(id, bookType, name)
+	byName[name][id] = nil
+	if not next(byName[name]) then
+		byName[name] = nil
+	end
+	byId[id] = nil
+	book[id] = nil
+	lastSeen[id] = nil
+
+	lib.callbacks:Fire("LibSpellbook_Spell_Removed", id, bookType, name)
+end
+
+function lib:ScanArtifact(event, artifactID, powers)
+	self.generation = self.generation + 1
 	local changed = false
+	local traits, _ = {}
 
-	if GetInventoryItemQuality("player", INVSLOT_MAINHAND) == LE_ITEM_QUALITY_ARTIFACT and
-			not GetInventoryItemEquippedUnusable("player", INVSLOT_MAINHAND) then
-		-- prevent the artifact ui from opening if it is not open
-		local ArtifactFrame = _G.ArtifactFrame
-		local artifactUIShown = ArtifactFrame and ArtifactFrame:IsShown()
-		if not artifactUIShown then
-			UIParent:UnregisterEvent("ARTIFACT_UPDATE")
-			if ArtifactFrame then
-				ArtifactFrame:UnregisterEvent("ARTIFACT_UPDATE")
-			end
-			SocketInventoryItem(INVSLOT_MAINHAND)
-		end
-
-		local powers = GetArtifactPowers()
-		for i = 1, #powers do
-			local id, _, currentRank = GetArtifactPowerInfo(powers[i])
-			if currentRank > 0 then
-				local name = GetSpellInfo(id)
-				changed = self:FoundSpell(id, name, "ARTIFACT") or changed
-			end
-		end
-		-- restore defaults
-		if not artifactUIShown then
-			ClearArtifactData()
-			if ArtifactFrame then
-				ArtifactFrame:RegisterEvent("ARTIFACT_UPDATE")
-			end
-			UIParent:RegisterEvent("ARTIFACT_UPDATE")
+	if artifactID and artifactID == LAD:GetActiveArtifactID() then
+		if type(powers) == "table" then -- ARTIFACT_TRAITS_CHANGED
+			traits = powers
+		else  -- ARTIFACT_ACTIVE_CHANGED
+			_, traits = LAD:GetArtifactTraits(artifactID)
 		end
 	end
 
-	return changed
+	for _, data in ipairs(traits) do
+		changed = self:FoundSpell(data.spellID, data.name, "ARTIFACT")
+	end
+
+	local current = self.generation
+	for id, gen in pairs(lastSeen) do
+		if gen ~= current then
+			changed = true
+			local name = byId[id]
+			local bookType = book[id]
+			if bookType == "ARTIFACT" then
+				CleanUp(id, bookType, name)
+			end
+		end
+	end
+
+	if changed then
+		self.callbacks:Fire("LibSpellbook_Spells_Changed")
+	end
 end
+LAD.RegisterCallback(lib, "ARTIFACT_ACTIVE_CHANGED", "ScanArtifact")
+LAD.RegisterCallback(lib, "ARTIFACT_TRAITS_CHANGED", "ScanArtifact")
 
 function lib:ScanSpellbooks()
 	self.generation = self.generation + 1
@@ -322,7 +326,6 @@ function lib:ScanSpellbooks()
 	if not inCombat then
 		changed = self:ScanTalents() or changed
 		changed = self:ScanPvpTalents() or changed
-		changed = self:ScanArtifact() or changed
 	end
 
 	-- Remove old spells
@@ -332,15 +335,8 @@ function lib:ScanSpellbooks()
 			changed = true
 			local name = byId[id]
 			local bookType = book[id]
-			if inCombat and (bookType == "spell" or bookType == "pet") or not inCombat then
-				self.callbacks:Fire("LibSpellbook_Spell_Removed", id, book[id], name)
-				byName[name][id] = nil
-				if not next(byName[name]) then
-					byName[name] = nil
-				end
-				byId[id] = nil
-				book[id] = nil
-				lastSeen[id] = nil
+			if inCombat and (bookType == "spell" or bookType == "pet") or not inCombat and bookType ~= "ARTIFACT" then
+				CleanUp(id, bookType, name)
 			end
 		end
 	end
