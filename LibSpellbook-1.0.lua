@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 19
+local MAJOR, MINOR = "LibSpellbook-1.0", 20
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
@@ -164,6 +164,7 @@ function lib:IterateSpells(bookType)
 end
 
 function lib:FoundSpell(id, name, bookType)
+	if not (id and name) then return end
 	local isNew = not lastSeen[id]
 	if byName[name] then
 		byName[name][id] = true
@@ -207,7 +208,13 @@ function lib:ScanSpellbook(bookType, numSpells, offset)
 		local spellType, id1 = GetSpellBookItemInfo(index, bookType)
 		if spellType == "SPELL" then
 			local link = GetSpellLink(index, bookType)
-			local id2, name = strmatch(link, "spell:(%d+):%d+\124h%[(.+)%]")
+			local id2, name
+			-- BUG: Summon Lightforged Warframe does not have a link
+			if link then
+				id2, name = strmatch(link, "spell:(%d+):%d+\124h%[(.+)%]")
+			else
+				name, _, _, _, _, _, id2 = GetSpellInfo(GetSpellInfo(id1))
+			end
 			changed = self:FoundSpell(tonumber(id2), name, bookType) or changed
 			if id1 ~= id2 then
 				changed = self:FoundSpell(id1, GetSpellBookItemName(index, bookType), bookType) or changed
