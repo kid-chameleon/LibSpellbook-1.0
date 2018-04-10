@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 20
+local MAJOR, MINOR = "LibSpellbook-1.0", 21
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
@@ -117,7 +117,7 @@ end
 --- Return whether the player or her pet knowns a spell.
 -- @name LibSpellbook:IsKnown
 -- @param spell (string|number) The spell name, link or identifier.
--- @param bookType (string) The spellbook to look into, either BOOKTYPE_SPELL, BOOKTYPE_PET,"TALENT", "PVP", "ARTIFACT", "MOUNT", "CRITTER" or nil (=any).
+-- @param bookType (string) The spellbook to look into, either BOOKTYPE_SPELL, BOOKTYPE_PET,"TALENT", "PVP", "ARTIFACT", "MOUNT", "CRITTER", "EXCEPTION" or nil (=any).
 -- @return True if the spell exists in the given spellbook (o
 function lib:IsKnown(spell, bookType)
 	local id = self:Resolve(spell)
@@ -149,7 +149,7 @@ end
 
 --- Iterate through all spells.
 -- @name LibSpellbook:IterateSpells
--- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, "TALENT", "PVP", "ARTIFACT", "MOUNT", "CRITTER" or nil for all.
+-- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, "TALENT", "PVP", "ARTIFACT", "MOUNT", "CRITTER", "EXCEPTION" or nil for all.
 -- @return An iterator and a table, suitable to use in "in" part of a "for ... in" loop.
 -- @usage
 --   for id, name in LibSpellbook:IterateSpells(BOOKTYPE_SPELL) do
@@ -196,6 +196,29 @@ function lib:ScanFlyout(flyoutId, bookType)
 			end
 		end
 	end
+	return changed
+end
+
+
+local playerClass
+local exceptionSpells = {
+	DRUID = {
+		[231042] = IsPlayerSpell, -- Moonkin Form (Rank 2)
+	}
+}
+function lib:ScanExceptions()
+	playerClass = playerClass or select(2, UnitClass('player'))
+	local exceptions = exceptionSpells[playerClass]
+	if not exceptions then return end
+
+	local changed = false
+	for spell, isKnown in next, exceptions do
+		if isKnown(spell) then
+			local name = GetSpellInfo(spell)
+			changed = self:FoundSpell(spell, name, "EXCEPTION") or changed
+		end
+	end
+
 	return changed
 end
 
@@ -334,6 +357,8 @@ function lib:ScanSpellbooks()
 		changed = self:ScanTalents() or changed
 		changed = self:ScanPvpTalents() or changed
 	end
+
+	changed = self:ScanExceptions() or changed
 
 	-- Remove old spells
 	local current = self.generation
