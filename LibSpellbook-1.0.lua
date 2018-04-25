@@ -42,16 +42,15 @@ local LAD = LibStub("LibArtifactData-1.0")
 local _G = _G
 local BOOKTYPE_PET = _G.BOOKTYPE_PET
 local BOOKTYPE_SPELL = _G.BOOKTYPE_SPELL
-local MAX_PVP_TALENT_COLUMNS = _G.MAX_PVP_TALENT_COLUMNS
-local MAX_PVP_TALENT_TIERS = _G.MAX_PVP_TALENT_TIERS
 local MAX_TALENT_TIERS = _G.MAX_TALENT_TIERS
 local NUM_TALENT_COLUMNS = _G.NUM_TALENT_COLUMNS
 -- blizzard api
 local CreateFrame = _G.CreateFrame
+local GetAllSelectedPvpTalentIDs = C_SpecializationInfo.GetAllSelectedPvpTalentIDs
 local GetActiveSpecGroup = _G.GetActiveSpecGroup
 local GetFlyoutInfo = _G.GetFlyoutInfo
 local GetFlyoutSlotInfo = _G.GetFlyoutSlotInfo
-local GetPvpTalentInfo = _G.GetPvpTalentInfo
+local GetPvpTalentInfoByID = _G.GetPvpTalentInfoByID
 local GetSpellBookItemInfo = _G.GetSpellBookItemInfo
 local GetSpellBookItemName = _G.GetSpellBookItemName
 local GetSpellLink = _G.GetSpellLink
@@ -273,15 +272,10 @@ end
 function lib:ScanPvpTalents()
 	local changed = false
 
-	local activeSpec = GetActiveSpecGroup()
-
-	for tier = 1, MAX_PVP_TALENT_TIERS do
-		for column = 1, MAX_PVP_TALENT_COLUMNS do
-			local _, name, _, selected, _, id = GetPvpTalentInfo(tier, column, activeSpec)
-			if selected then
-				changed = self:FoundSpell(id, name, "PVP") or changed
-			end
-		end
+	local selectedPvpTalents = GetAllSelectedPvpTalentIDs()
+	for _, talentID in next, selectedPvpTalents do
+		local _, name, _, _, _, spellID = GetPvpTalentInfoByID(talentID)
+		changed = self:FoundSpell(spellID, name, 'PVP') or changed
 	end
 
 	return changed
