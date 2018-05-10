@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 21
+local MAJOR, MINOR = "LibSpellbook-1.0", 22
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
@@ -237,7 +237,8 @@ function lib:ScanSpellbook(bookType, numSpells, offset)
 			else
 				name, _, _, _, _, _, id2 = GetSpellInfo(GetSpellInfo(id1))
 			end
-			changed = self:FoundSpell(tonumber(id2), name, bookType) or changed
+			id2 = tonumber(id2)
+			changed = self:FoundSpell(id2, name, bookType) or changed
 			if id1 ~= id2 then
 				changed = self:FoundSpell(id1, GetSpellBookItemName(index, bookType), bookType) or changed
 			end
