@@ -242,6 +242,9 @@ function lib:ScanSpellbook(bookType, numSpells, offset)
 			end
 		elseif spellType == "FLYOUT" then
 			changed = self:ScanFlyout(id1, bookType) or changed
+		elseif spellType == "PETACTION" then
+			local name, _, id = GetSpellBookItemName(index, bookType)
+			changed = self:FoundSpell(id, name, bookType) or changed
 		elseif not spellType then
 			break
 		end
