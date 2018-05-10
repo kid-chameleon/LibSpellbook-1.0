@@ -46,11 +46,9 @@ local MAX_TALENT_TIERS = _G.MAX_TALENT_TIERS
 local NUM_TALENT_COLUMNS = _G.NUM_TALENT_COLUMNS
 -- blizzard api
 local CreateFrame = _G.CreateFrame
-local GetAllSelectedPvpTalentIDs = C_SpecializationInfo.GetAllSelectedPvpTalentIDs
 local GetActiveSpecGroup = _G.GetActiveSpecGroup
 local GetFlyoutInfo = _G.GetFlyoutInfo
 local GetFlyoutSlotInfo = _G.GetFlyoutSlotInfo
-local GetPvpTalentInfoByID = _G.GetPvpTalentInfoByID
 local GetSpellBookItemInfo = _G.GetSpellBookItemInfo
 local GetSpellBookItemName = _G.GetSpellBookItemName
 local GetSpellLink = _G.GetSpellLink
@@ -270,18 +268,6 @@ function lib:ScanTalents()
 	return changed
 end
 
-function lib:ScanPvpTalents()
-	local changed = false
-
-	local selectedPvpTalents = GetAllSelectedPvpTalentIDs()
-	for _, talentID in next, selectedPvpTalents do
-		local _, name, _, _, _, spellID = GetPvpTalentInfoByID(talentID)
-		changed = self:FoundSpell(spellID, name, 'PVP') or changed
-	end
-
-	return changed
-end
-
 local function CleanUp(id, bookType, name)
 	byName[name][id] = nil
 	if not next(byName[name]) then
@@ -350,7 +336,6 @@ function lib:ScanSpellbooks()
 
 	if not inCombat then
 		changed = self:ScanTalents() or changed
-		changed = self:ScanPvpTalents() or changed
 	end
 
 	changed = self:ScanExceptions() or changed
