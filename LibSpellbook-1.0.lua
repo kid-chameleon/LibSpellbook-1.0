@@ -31,7 +31,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 22
+local MAJOR, MINOR = "LibSpellbook-1.0", 23
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
@@ -47,8 +47,10 @@ local NUM_TALENT_COLUMNS = _G.NUM_TALENT_COLUMNS
 -- blizzard api
 local CreateFrame = _G.CreateFrame
 local GetActiveSpecGroup = _G.GetActiveSpecGroup
+local GetAllSelectedPvpTalentIDs = _G.C_SpecializationInfo.GetAllSelectedPvpTalentIDs
 local GetFlyoutInfo = _G.GetFlyoutInfo
 local GetFlyoutSlotInfo = _G.GetFlyoutSlotInfo
+local GetPvpTalentInfoByID = _G.GetPvpTalentInfoByID
 local GetSpellBookItemInfo = _G.GetSpellBookItemInfo
 local GetSpellBookItemName = _G.GetSpellBookItemName
 local GetSpellLink = _G.GetSpellLink
@@ -57,6 +59,8 @@ local GetSpellTabInfo = _G.GetSpellTabInfo
 local GetTalentInfo = _G.GetTalentInfo
 local HasPetSpells = _G.HasPetSpells
 local InCombatLockdown = _G.InCombatLockdown
+local IsPlayerSpell = _G.IsPlayerSpell
+local IsWarModeDesired = _G.C_PvP.IsWarModeDesired
 -- lua api
 local next = _G.next
 local pairs = _G.pairs
@@ -271,6 +275,22 @@ function lib:ScanTalents()
 	return changed
 end
 
+function lib:ScanPvpTalents()
+	local changed = false
+
+	if IsWarModeDesired() then
+		local selectedPvpTalents = GetAllSelectedPvpTalentIDs()
+		for _, talentId in next, selectedPvpTalents do
+			local _, name, _, _, _, spellId = GetPvpTalentInfoByID(talentId)
+			if IsPlayerSpell(spellId) then
+				changed = self:FoundSpell(spellId, name, 'PVP') or changed
+			end
+		end
+	end
+
+	return changed
+end
+
 local function CleanUp(id, bookType, name)
 	byName[name][id] = nil
 	if not next(byName[name]) then
@@ -341,6 +361,7 @@ function lib:ScanSpellbooks()
 		changed = self:ScanTalents() or changed
 	end
 
+	changed = self:ScanPvpTalents() or changed
 	changed = self:ScanExceptions() or changed
 
 	-- Remove old spells
@@ -350,7 +371,8 @@ function lib:ScanSpellbooks()
 			changed = true
 			local name = byId[id]
 			local bookType = book[id]
-			if inCombat and (bookType == "spell" or bookType == "pet") or not inCombat and bookType ~= "ARTIFACT" then
+			if inCombat and (bookType == "spell" or bookType == "pet" or bookType == "PVP")
+					or not inCombat and bookType ~= "ARTIFACT" then
 				CleanUp(id, bookType, name)
 			end
 		end
