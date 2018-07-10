@@ -118,8 +118,8 @@ end
 --- Return whether the player or her pet knowns a spell.
 -- @name LibSpellbook:IsKnown
 -- @param spell (string|number) The spell name, link or identifier.
--- @param bookType (string) The spellbook to look into, either BOOKTYPE_SPELL, BOOKTYPE_PET,"TALENT", "PVP", "ARTIFACT", "EXCEPTION" or nil (=any).
--- @return True if the spell exists in the given spellbook (o
+-- @param bookType (string) The spellbook to look into, either BOOKTYPE_SPELL, BOOKTYPE_PET, "TALENT", "PVP", "ARTIFACT" or nil (=any).
+-- @return True if the spell is known to the player
 function lib:IsKnown(spell, bookType)
 	local id = self:Resolve(spell)
 	if id and byId[id] then
@@ -131,7 +131,7 @@ end
 --- Return the spellbook.
 -- @name LibSpellbook:GetBookType
 -- @param spell (string|number) The spell name, link or identifier.
--- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "TALENT", "PVP", "ARTIFACT", "EXCEPTION" or nil if the spell if unknown.
+-- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "TALENT", "PVP", "ARTIFACT" or nil if the spell if unknown.
 function lib:GetBookType(spell)
 	local id = self:Resolve(spell)
 	return id and book[id]
@@ -150,7 +150,7 @@ end
 
 --- Iterate through all spells.
 -- @name LibSpellbook:IterateSpells
--- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, "TALENT", "PVP", "ARTIFACT", "EXCEPTION" or nil for all.
+-- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, "TALENT", "PVP", "ARTIFACT" or nil for all.
 -- @return An iterator and a table, suitable to use in "in" part of a "for ... in" loop.
 -- @usage
 --   for id, name in LibSpellbook:IterateSpells(BOOKTYPE_SPELL) do
@@ -202,21 +202,116 @@ end
 
 
 local playerClass
-local exceptionSpells = {
+local spellRanks = {
+	DEATHKNIGHT = {
+		278223, -- Death Strike (Rank 2) (Unholy)
+	},
 	DRUID = {
-		[231042] = IsPlayerSpell, -- Moonkin Form (Rank 2)
-	}
+		159456, -- Travel Form (Rank 2)
+		231021, -- Starsurge (Rank 2) (Balance)
+		231040, -- Rejuvenation (Rank 2) (Restoration)
+		231042, -- Moonkin Form (Rank 2) (Balance)
+		231050, -- Sunfire (Rank 2) (Balance/Restoration)
+		231052, -- Rake (Rank 2) (Feral)
+		231055, -- Tiger's Fury (Rank 2) (Feral)
+		231056, -- Ferocious Bite (Rank 2) (Feral)
+		231057, -- Shred (Rank 3) (Feral)
+		231063, -- Shred (Rank 2) (Feral)
+		231064, -- Mangle (Rank 2) (Guardian)
+		231070, -- Ironfur (Rank 2) (Guardian)
+		231283, -- Swipe (Rank 2) (Feral)
+		270100, -- Bear Form (Rank 2) (Guardian)
+		273048, -- Frenzied Regeneration (Rank 2) (Guardian)
+	},
+	HUNTER = {
+		231546, -- Exhilaration (Rank 2)
+		231549, -- Disengage (Rank 2)
+		231550, -- Harpoon (Rank 2) (Survival)
+		262837, -- Cobra Shot (Rank 2) (Beast Mastery)
+		262838, -- Cobra Shot (Rank 3) (Beast Mastery)
+		262839, -- Raptor Strike (Rank 2) (Survival)
+		263186, -- Kill Command (Rank 2) (Survival)
+	},
+	MAGE = {
+		231564, -- Arcane Barrage (Rank 2) (Arcane)
+		231565, -- Evocation (Rank 2) (Arcane)
+		231567, -- Fire Blast (Rank 3) (Fire)
+		231568, -- Fire Blast (Rank 2) (Fire)
+		231582, -- Shatter (Rank 2) (Frost)
+		231584, -- Brain Freeze (Rank 2) (Frost)
+		231596, -- Freeze (Pet) (Frost)
+		236662, -- Blizzard (Rank 2) (Frost)
+	},
+	MONK = {
+		231231, -- Renewing Mist (Rank 2) (Mistweaver)
+		231602, -- Vivify (Rank 2)
+		231605, -- Enveloping Mist (Rank 2) (Mistweaver)
+		231627, -- Storm, Earth, and Fire (Rank 2) (Windwalker)
+		231633, -- Essence Font (Rank 2) (Mistweaver)
+		231876, -- Thunder Focus Tea (Rank 2) (Mistweaver)
+		261916, -- Blackout Kick (Rank 2) (Windwalker)
+		261917, -- Blackout Kick (Rank 3) (Windwalker)
+		262840, -- Rising Sun Kick (Rank 2) (Mistweaver/Windwalker)
+		274586, -- Vivify (Rank 2) (Mistweaver)
+	},
+	PALADIN = {
+		200327, -- Blessing of Sacrifice (Rank 2) (Holy)
+		231642, -- Beacon of Light (Rank 2) (Holy)
+		231644, -- Judgement (Rank 2) (Holy)
+		231657, -- Judgement (Rank 2) (Protection)
+		231663, -- Judgement (Rank 2) (Retribution)
+		231667, -- Crusader Strike (Rank 2) (Holy/Retribution)
+		272906, -- Holy Shock (Rank 2) (Holy)
+	},
+	PRIEST = {
+		231682, -- Smite (Rank 2) (Discipline)
+		231688, -- Void Bolt (Rank 2) (Shadow)
+		262861, -- Smite (Rank 2) (Discipline/Holy)
+	},
+	ROGUE = {
+		231691, -- Sprint (Rank 2)
+		231716, -- Eviscerate (Rank 2) (Subtlety)
+		231718, -- Shadowstrike (Rank 2) (Subtlety)
+		231719, -- Garotte (Rank 2) (Assasination)
+		235484, -- Between the Eyes (Rank 2) (Outlaw)
+		245751, -- Sprint (Rank 2) (Subtlety)
+		279876, -- Sinister Strike (Rank 2) (Outlaw)
+		279877, -- Sinister Strike (Rank 2) (Assasination)
+	},
+	SHAMAN = {
+		190899, -- Healing Surge (Rank 2) (Enhancement)
+		231721, -- Lava Burst (Rank 2) (Elemental/Restoration)
+		231722, -- Chain Lightning (Rank 2) (Elemental)
+		231723, -- Feral Spirit (Rank 2) (Enhancement)
+		231725, -- Riptide (Rank 2) (Restoration)
+		231780, -- Chain Heal (Rank 2) (Restoration)
+		231785, -- Tidal Waves (Rank 2) (Restoration)
+		280609, -- Mastery: Elemental Overload (Rank 2) (Elemental)
+	},
+	WARLOCK = {
+		231791, -- Unstable Affliction (Rank 2) (Affliction)
+		231792, -- Agony (Rank 2) (Affliction)
+		231793, -- Conflagrate (Rank 2) (Destruction)
+		231811, -- Soulstone (Rank 2)
+	},
+	WARRIOR = {
+		 12950, -- Whirlwind (Rank 2) (Fury)
+		231827, -- Execute (Rank 2) (Fury)
+		231830, -- Execute (Rank 2) (Arms)
+		231834, -- Shield Slam (Rank 2) (Protection)
+		231847, -- Shield Block (Rank 2) (Protection)
+	},
 }
-function lib:ScanExceptions()
+function lib:ScanRanks()
 	playerClass = playerClass or select(2, UnitClass('player'))
-	local exceptions = exceptionSpells[playerClass]
-	if not exceptions then return end
+	local ranks = spellRanks[playerClass]
+	if not ranks then return end
 
 	local changed = false
-	for spell, isKnown in next, exceptions do
-		if isKnown(spell) then
+	for spell in next, ranks do
+		if IsPlayerSpell(spell) then
 			local name = GetSpellInfo(spell)
-			changed = self:FoundSpell(spell, name, "EXCEPTION") or changed
+			changed = self:FoundSpell(spell, name, BOOKTYPE_SPELL) or changed
 		end
 	end
 
@@ -362,7 +457,7 @@ function lib:ScanSpellbooks()
 	end
 
 	changed = self:ScanPvpTalents() or changed
-	changed = self:ScanExceptions() or changed
+	changed = self:ScanRanks() or changed
 
 	-- Remove old spells
 	local current = self.generation
@@ -371,7 +466,7 @@ function lib:ScanSpellbooks()
 			changed = true
 			local name = byId[id]
 			local bookType = book[id]
-			if inCombat and (bookType == "spell" or bookType == "pet" or bookType == "PVP")
+			if inCombat and (bookType == BOOKTYPE_SPELL or bookType == BOOKTYPE_PET or bookType == "PVP")
 					or not inCombat and bookType ~= "ARTIFACT" then
 				CleanUp(id, bookType, name)
 			end
