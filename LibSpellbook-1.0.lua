@@ -1,6 +1,6 @@
 --[[
 LibSpellbook-1.0 - Track the spellbook to parry to IsSpellKnown discrepancies.
-Copyright (C) 2013-2014 Adirelle (adirelle@gmail.com)
+Copyright (C) 2013-2018 Adirelle (adirelle@gmail.com)
 
 All rights reserved.
 
