@@ -5,7 +5,6 @@
 ## X-Date: @project-date@
 ## Notes: Track the spellbook to parry to IsPlayerSpell and IsSpellKnown discrepancies.
 ## Author: Adirelle
-## OptionalDeps: LibArtifactData-1.0
 
 LibStub.lua
 CallbackHandler-1.0.lua

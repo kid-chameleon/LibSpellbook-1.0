@@ -31,12 +31,10 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --]]
 
-local MAJOR, MINOR = "LibSpellbook-1.0", 23
+local MAJOR, MINOR = "LibSpellbook-1.0", 24
 assert(LibStub, MAJOR.." requires LibStub")
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
-
-local LAD = LibStub("LibArtifactData-1.0")
 
 -- constants
 local _G = _G
@@ -118,7 +116,7 @@ end
 --- Return whether the player or her pet knowns a spell.
 -- @name LibSpellbook:IsKnown
 -- @param spell (string|number) The spell name, link or identifier.
--- @param bookType (string) The spellbook to look into, either BOOKTYPE_SPELL, BOOKTYPE_PET, "TALENT", "PVP", "ARTIFACT" or nil (=any).
+-- @param bookType (string) The spellbook to look into, either BOOKTYPE_SPELL, BOOKTYPE_PET, "TALENT", "PVP", or nil (=any).
 -- @return True if the spell is known to the player
 function lib:IsKnown(spell, bookType)
 	local id = self:Resolve(spell)
@@ -131,7 +129,7 @@ end
 --- Return the spellbook.
 -- @name LibSpellbook:GetBookType
 -- @param spell (string|number) The spell name, link or identifier.
--- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "TALENT", "PVP", "ARTIFACT" or nil if the spell if unknown.
+-- @return BOOKTYPE_SPELL ("spell"), BOOKTYPE_PET ("pet"), "TALENT", "PVP", or nil if the spell if unknown.
 function lib:GetBookType(spell)
 	local id = self:Resolve(spell)
 	return id and book[id]
@@ -150,7 +148,7 @@ end
 
 --- Iterate through all spells.
 -- @name LibSpellbook:IterateSpells
--- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, "TALENT", "PVP", "ARTIFACT" or nil for all.
+-- @param bookType (string) The book to iterate : BOOKTYPE_SPELL, BOOKTYPE_PET, "TALENT", "PVP", or nil for all.
 -- @return An iterator and a table, suitable to use in "in" part of a "for ... in" loop.
 -- @usage
 --   for id, name in LibSpellbook:IterateSpells(BOOKTYPE_SPELL) do
@@ -398,42 +396,6 @@ local function CleanUp(id, bookType, name)
 	lib.callbacks:Fire("LibSpellbook_Spell_Removed", id, bookType, name)
 end
 
-function lib:ScanArtifact(event, artifactID, powers)
-	self.generation = self.generation + 1
-	local changed = false
-	local traits, _ = {}
-
-	if artifactID and artifactID == LAD:GetActiveArtifactID() then
-		if type(powers) == "table" then -- ARTIFACT_TRAITS_CHANGED
-			traits = powers
-		else  -- ARTIFACT_ACTIVE_CHANGED
-			_, traits = LAD:GetArtifactTraits(artifactID)
-		end
-	end
-
-	for _, data in ipairs(traits) do
-		changed = self:FoundSpell(data.spellID, data.name, "ARTIFACT")
-	end
-
-	local current = self.generation
-	for id, gen in pairs(lastSeen) do
-		if gen ~= current then
-			changed = true
-			local name = byId[id]
-			local bookType = book[id]
-			if bookType == "ARTIFACT" then
-				CleanUp(id, bookType, name)
-			end
-		end
-	end
-
-	if changed then
-		self.callbacks:Fire("LibSpellbook_Spells_Changed")
-	end
-end
-LAD.RegisterCallback(lib, "ARTIFACT_ACTIVE_CHANGED", "ScanArtifact")
-LAD.RegisterCallback(lib, "ARTIFACT_TRAITS_CHANGED", "ScanArtifact")
-
 function lib:ScanSpellbooks()
 	self.generation = self.generation + 1
 
@@ -466,8 +428,7 @@ function lib:ScanSpellbooks()
 			changed = true
 			local name = byId[id]
 			local bookType = book[id]
-			if inCombat and (bookType == BOOKTYPE_SPELL or bookType == BOOKTYPE_PET or bookType == "PVP")
-					or not inCombat and bookType ~= "ARTIFACT" then
+			if not inCombat or bookType ~= "TALENT" then
 				CleanUp(id, bookType, name)
 			end
 		end
