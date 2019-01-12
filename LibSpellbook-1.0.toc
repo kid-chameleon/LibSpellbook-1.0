@@ -1,4 +1,4 @@
-## Interface: 80000
+## Interface: 80100
 ## LoadOnDemand: 1
 ## Title: Lib: Spellbook-1.0
 ## Version: @project-version@
