@@ -8,4 +8,4 @@
 
 LibStub.lua
 CallbackHandler-1.0.lua
-lib.xml
+LibSpellbook-1.0.xml
