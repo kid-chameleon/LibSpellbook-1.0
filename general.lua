@@ -166,7 +166,7 @@ end
 local function ScanPvpTalents()
 	local changed = false
 	if C_PvP.IsWarModeDesired() then
-		local selectedPvpTalents = C_SpecializationInfo.GetAllSelectedPvpTalentIDs
+		local selectedPvpTalents = C_SpecializationInfo.GetAllSelectedPvpTalentIDs()
 		for _, talentId in next, selectedPvpTalents do
 			local _, name, _, _, _, spellId = GetPvpTalentInfoByID(talentId)
 			if IsPlayerSpell(spellId) then
@@ -192,7 +192,7 @@ local function ScanSpellbook(bookType, numSpells, offset)
 				id = tonumber(id)
 				if id ~= spellId then
 					-- TODO: check this
-					print('Differing ids from link and spellbook', id, spellId)
+					-- print('Differing ids from link and spellbook', id, spellId)
 					changed = FoundSpell(id, n, bookType) or changed
 				end
 			end
@@ -252,5 +252,6 @@ local function ScanSpells(event)
 	end
 end
 
-lib:RegisterEvent('SPELLS_CHANGED', ScanSpells)
 lib:RegisterEvent('PLAYER_ENTERING_WORLD', ScanSpells)
+lib:RegisterEvent('PVP_TIMER_UPDATE', ScanSpells, true)
+lib:RegisterEvent('SPELLS_CHANGED', ScanSpells)
