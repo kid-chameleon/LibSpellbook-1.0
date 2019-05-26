@@ -1,6 +1,8 @@
 local _, ns = ...
+ns = ns['__LibSpellbook-1.0']
 
 local lib = ns.lib
+if not lib then return end
 
 local FoundSpell = ns.FoundSpell
 local CleanUp    = ns.CleanUp
