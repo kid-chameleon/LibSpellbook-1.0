@@ -149,35 +149,6 @@ local function ScanFlyout(flyoutId, bookType)
 	return changed
 end
 
-local function ScanTalents()
-	local changed = false
-	local spec = GetActiveSpecGroup()
-	for tier = 1, MAX_TALENT_TIERS do
-		for column = 1, NUM_TALENT_COLUMNS do
-			local _, _, _, _, _, spellId, _, _, _, isKnown, isGrantedByAura = GetTalentInfo(tier, column, spec)
-			if isKnown or isGrantedByAura then
-				local name = GetSpellInfo(spellId)
-				changed = FoundSpell(spellId, name, 'talent') or changed
-			end
-		end
-	end
-
-	return changed
-end
-
-local function ScanPvpTalents()
-	local changed = false
-	if C_PvP.IsWarModeDesired() then
-		local selectedPvpTalents = C_SpecializationInfo.GetAllSelectedPvpTalentIDs()
-		for _, talentId in next, selectedPvpTalents do
-			local _, name, _, _, _, spellId = GetPvpTalentInfoByID(talentId)
-			if IsPlayerSpell(spellId) then
-				changed = FoundSpell(spellId, name, 'pvp') or changed
-			end
-		end
-	end
-end
-
 local function ScanSpellbook(bookType, numSpells, offset)
 	local changed = false
 	offset = offset or 0
@@ -215,7 +186,8 @@ local function ScanSpells(event)
 	local changed = false
 	ns.generation = ns.generation + 1
 
-	for tab = 1, 2 do
+	local numTabs = GetNumSpellTabs()
+	for tab = 1, numTabs do
 		local _, _, offset, numSpells = GetSpellTabInfo(tab)
 		changed = ScanSpellbook('spell', numSpells, offset) or changed
 	end
@@ -229,10 +201,8 @@ local function ScanSpells(event)
 
 	local inCombat = InCombatLockdown()
 	if not inCombat then
-		changed = ScanTalents() or changed
+		changed = changed
 	end
-
-	changed = ScanPvpTalents() or changed
 
 	local current = ns.generation
 	for id, generation in next, ns.spells.lastSeen do
@@ -255,5 +225,4 @@ local function ScanSpells(event)
 end
 
 lib:RegisterEvent('PLAYER_ENTERING_WORLD', ScanSpells)
-lib:RegisterEvent('PVP_TIMER_UPDATE', ScanSpells, true)
 lib:RegisterEvent('SPELLS_CHANGED', ScanSpells)
