@@ -16,9 +16,6 @@ local supportedBookTypes = {
 
 local playerClass
 local spellRanks = {
-	DEATHKNIGHT = {
-		278223, -- Death Strike (Rank 2) (Unholy)
-	},
 	DRUID = {
 		159456, -- Travel Form (Rank 2)
 		231021, -- Starsurge (Rank 2) (Balance)
@@ -54,18 +51,6 @@ local spellRanks = {
 		231584, -- Brain Freeze (Rank 2) (Frost)
 		231596, -- Freeze (Pet) (Frost)
 		236662, -- Blizzard (Rank 2) (Frost)
-	},
-	MONK = {
-		231231, -- Renewing Mist (Rank 2) (Mistweaver)
-		231602, -- Vivify (Rank 2)
-		231605, -- Enveloping Mist (Rank 2) (Mistweaver)
-		231627, -- Storm, Earth, and Fire (Rank 2) (Windwalker)
-		231633, -- Essence Font (Rank 2) (Mistweaver)
-		231876, -- Thunder Focus Tea (Rank 2) (Mistweaver)
-		261916, -- Blackout Kick (Rank 2) (Windwalker)
-		261917, -- Blackout Kick (Rank 3) (Windwalker)
-		262840, -- Rising Sun Kick (Rank 2) (Mistweaver/Windwalker)
-		274586, -- Vivify (Rank 2) (Mistweaver)
 	},
 	PALADIN = {
 		200327, -- Blessing of Sacrifice (Rank 2) (Holy)
