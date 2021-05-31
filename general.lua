@@ -117,6 +117,21 @@ local function ScanRanks()
 	return changed
 end
 
+--local function ScanTalents()
+--	local changed = false
+
+--	for tab = 1, MAX_TALENT_TABS do
+--		for id = 1, MAX_NUM_TALENTS do
+--			local name, _, _, _, currentRank = GetTalentInfo(tab, id)
+--			if currentRank > 0 then
+--				changed = FoundSpell(_, name, 'talent') or changed
+--			end
+--		end
+--	end
+
+--	return changed
+--end
+
 local function ScanFlyout(flyoutId, bookType)
 	local _, _, numSlots, isKnown = GetFlyoutInfo(flyoutId)
 
