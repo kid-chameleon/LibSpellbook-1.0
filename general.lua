@@ -16,6 +16,11 @@ local supportedBookTypes = {
 
 local playerClass
 
+-- war mode and pvp talents only exist on retail
+local hasPvpTalents = C_PvP and C_PvP.IsWarModeDesired
+	and C_SpecializationInfo and C_SpecializationInfo.GetAllSelectedPvpTalentIDs
+	and true or false
+
 local function ScanFlyout(flyoutId, bookType)
 	local _, _, numSlots, isKnown = GetFlyoutInfo(flyoutId)
 
@@ -92,7 +97,9 @@ local function ScanSpells(event)
 
 	local inCombat = InCombatLockdown()
 
-	changed = ScanPvpTalents() or changed
+	if hasPvpTalents then
+		changed = ScanPvpTalents() or changed
+	end
 
 	local current = ns.generation
 	for id, generation in next, ns.spells.lastSeen do
@@ -115,5 +122,7 @@ local function ScanSpells(event)
 end
 
 lib:RegisterEvent('PLAYER_ENTERING_WORLD', ScanSpells)
-lib:RegisterEvent('PVP_TIMER_UPDATE', ScanSpells, true)
+if hasPvpTalents then
+	lib:RegisterEvent('PVP_TIMER_UPDATE', ScanSpells, true)
+end
 lib:RegisterEvent('SPELLS_CHANGED', ScanSpells)
