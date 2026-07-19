@@ -14,13 +14,6 @@ local supportedBookTypes = {
 	talent   = true,
 }
 
-local playerClass
-
--- war mode and pvp talents only exist on retail
-local hasPvpTalents = C_PvP and C_PvP.IsWarModeDesired
-	and C_SpecializationInfo and C_SpecializationInfo.GetAllSelectedPvpTalentIDs
-	and true or false
-
 local function ScanFlyout(flyoutId, bookType)
 	local _, _, numSlots, isKnown = GetFlyoutInfo(flyoutId)
 
@@ -38,39 +31,35 @@ local function ScanFlyout(flyoutId, bookType)
 	return changed
 end
 
-local function ScanPvpTalents()
-	local changed = false
-	if C_PvP.IsWarModeDesired() then
-		local selectedPvpTalents = C_SpecializationInfo.GetAllSelectedPvpTalentIDs()
-		for _, talentId in next, selectedPvpTalents do
-			local _, name, _, _, _, spellId = GetPvpTalentInfoByID(talentId)
-			if IsPlayerSpell(spellId) then
-				changed = FoundSpell(spellId, name, 'pvp') or changed
-			end
-		end
-	end
-end
-
+-- The classic clients (era and anniversary alike) only ship the legacy
+-- spellbook API: their own SpellBookFrame uses GetNumSpellTabs and
+-- GetSpellBookItemInfo, and C_SpellBook holds none of the retail scan
+-- functions (no GetNumSpellBookSkillLines/GetSpellBookItemInfo).
 local function ScanSpellbook(bookType, numSpells, offset)
 	local changed = false
 	offset = offset or 0
 
 	for i = offset + 1, offset + numSpells do
-		local info = C_SpellBook.GetSpellBookItemInfo(i, bookType)
-		local itemType = info.itemType
-		if itemType == Enum.SpellBookItemType.Spell then
-			changed = FoundSpell(info.actionID, info.name, bookType) or changed
+		local spellType, actionId = GetSpellBookItemInfo(i, bookType)
+		if spellType == 'SPELL' then
+			local name, _, spellId = GetSpellBookItemName(i, bookType)
+			changed = FoundSpell(spellId, name, bookType) or changed
 
-			if (info.spellID and info.spellID ~= info.actionID) then
-				changed = FoundSpell(info.spellID, C_Spell.GetSpellName(info.spellID), bookType) or changed
+			-- ranked spells link to the highest known rank
+			local link = GetSpellLink(i, bookType)
+			if link then
+				local id, n = link:match('spell:(%d+):%d+\124h%[(.+)%]')
+				id = tonumber(id)
+				if id and id ~= spellId then
+					changed = FoundSpell(id, n, bookType) or changed
+				end
 			end
-		elseif itemType == Enum.SpellBookItemType.Flyout then
-			changed = ScanFlyout(info.actionID, bookType)
-		elseif itemType == Enum.SpellBookItemType.PetAction then
-			if info.spellID then
-				changed = FoundSpell(info.spellID, info.name, bookType) or changed
-			end
-		else
+		elseif spellType == 'FLYOUT' then
+			changed = ScanFlyout(actionId, bookType)
+		elseif spellType == 'PETACTION' then
+			local name, _, spellId = GetSpellBookItemName(i, bookType)
+			changed = FoundSpell(spellId, name, bookType) or changed
+		elseif not spellType or spellType == 'FUTURESPELL' then
 			break
 		end
 	end
@@ -82,24 +71,17 @@ local function ScanSpells(event)
 	local changed = false
 	ns.generation = ns.generation + 1
 
-	for skillLine = 1, C_SpellBook.GetNumSpellBookSkillLines() do
-		local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(skillLine)
-
-		if not skillLineInfo.offspecID then
-			changed = ScanSpellbook(Enum.SpellBookSpellBank.Player, skillLineInfo.numSpellBookItems, skillLineInfo.itemIndexOffset) or changed
-		end
+	for tab = 1, GetNumSpellTabs() do
+		local _, _, offset, numSpells = GetSpellTabInfo(tab)
+		changed = ScanSpellbook('spell', numSpells, offset) or changed
 	end
 
-	local numPetSpells = C_SpellBook.HasPetSpells()
+	local numPetSpells = HasPetSpells()
 	if numPetSpells then
-		changed = ScanSpellbook(Enum.SpellBookSpellBank.Pet, numPetSpells) or changed
+		changed = ScanSpellbook('pet', numPetSpells) or changed
 	end
 
 	local inCombat = InCombatLockdown()
-
-	if hasPvpTalents then
-		changed = ScanPvpTalents() or changed
-	end
 
 	local current = ns.generation
 	for id, generation in next, ns.spells.lastSeen do
@@ -122,7 +104,4 @@ local function ScanSpells(event)
 end
 
 lib:RegisterEvent('PLAYER_ENTERING_WORLD', ScanSpells)
-if hasPvpTalents then
-	lib:RegisterEvent('PVP_TIMER_UPDATE', ScanSpells, true)
-end
 lib:RegisterEvent('SPELLS_CHANGED', ScanSpells)
