@@ -67,18 +67,68 @@ local function ScanSpellbook(bookType, numSpells, offset)
 	return changed
 end
 
+-- WoW: Forever (and retail) ship only the C_SpellBook scan API: skill lines
+-- instead of tabs, and item info as a table.
+local hasSkillLineAPI = C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines and C_SpellBook.GetSpellBookSkillLineInfo
+	and C_SpellBook.GetSpellBookItemInfo and true or false
+
+local function ScanSkillLineItems(bookType, bank, first, last)
+	local changed = false
+	local Spell, PetAction, Flyout = Enum.SpellBookItemType.Spell, Enum.SpellBookItemType.PetAction, Enum.SpellBookItemType.Flyout
+
+	for i = first, last do
+		local item = C_SpellBook.GetSpellBookItemInfo(i, bank)
+		if not item then break end
+		if item.itemType == Spell or item.itemType == PetAction then
+			local spellId = item.spellID or item.actionID
+			changed = FoundSpell(spellId, item.name, bookType) or changed
+			if item.actionID and item.actionID ~= spellId then
+				changed = FoundSpell(item.actionID, item.name, bookType) or changed
+			end
+		elseif item.itemType == Flyout and GetFlyoutInfo then
+			changed = ScanFlyout(item.actionID, bookType) or changed
+		end
+	end
+
+	return changed
+end
+
+local function ScanSkillLines()
+	local changed = false
+	local bank = Enum.SpellBookSpellBank.Player
+
+	for line = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+		local info = C_SpellBook.GetSpellBookSkillLineInfo(line)
+		if info and not info.isGuild then
+			local first = info.itemIndexOffset + 1
+			changed = ScanSkillLineItems('spell', bank, first, first + info.numSpellBookItems - 1) or changed
+		end
+	end
+
+	local numPetSpells = C_SpellBook.HasPetSpells()
+	if numPetSpells then
+		changed = ScanSkillLineItems('pet', Enum.SpellBookSpellBank.Pet, 1, numPetSpells) or changed
+	end
+
+	return changed
+end
+
 local function ScanSpells(event)
 	local changed = false
 	ns.generation = ns.generation + 1
 
-	for tab = 1, GetNumSpellTabs() do
-		local _, _, offset, numSpells = GetSpellTabInfo(tab)
-		changed = ScanSpellbook('spell', numSpells, offset) or changed
-	end
+	if hasSkillLineAPI then
+		changed = ScanSkillLines() or changed
+	else
+		for tab = 1, GetNumSpellTabs() do
+			local _, _, offset, numSpells = GetSpellTabInfo(tab)
+			changed = ScanSpellbook('spell', numSpells, offset) or changed
+		end
 
-	local numPetSpells = HasPetSpells()
-	if numPetSpells then
-		changed = ScanSpellbook('pet', numPetSpells) or changed
+		local numPetSpells = HasPetSpells()
+		if numPetSpells then
+			changed = ScanSpellbook('pet', numPetSpells) or changed
+		end
 	end
 
 	local inCombat = InCombatLockdown()

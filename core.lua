@@ -2,7 +2,7 @@ local _, ns = ...
 ns['__LibSpellbook-1.0'] = {}
 ns = ns['__LibSpellbook-1.0']
 
-local MAJOR, MINOR = 'LibSpellbook-1.0', 32
+local MAJOR, MINOR = 'LibSpellbook-1.0', 33
 assert(LibStub, MAJOR .. ' requires LibStub.')
 
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
@@ -168,7 +168,13 @@ function lib:IsKnown(spell, bookType)
 	end
 
 	-- fallback for class traits (we might dump this whole thing after all)
-	return IsPlayerSpell(spell)
+	if IsPlayerSpell then
+		return IsPlayerSpell(spell)
+	end
+	if id and C_SpellBook and C_SpellBook.IsSpellKnown then
+		return C_SpellBook.IsSpellKnown(id, Enum.SpellBookSpellBank.Player)
+	end
+	return false
 end
 
 local function iterator(bookType, id)
